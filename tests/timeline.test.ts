@@ -6,7 +6,7 @@ import {
 import type { LongTask } from '../src/shared/types'
 
 const lt = (id: number, s: string, e: string): LongTask => ({
-  id, title: `T${id}`, start_date: s, end_date: e, color: '#fff',
+  id, title: `T${id}`, start_date: s, end_date: e, color: '#fff', done: false,
   source_module: null, source_id: null, created_at: '', updated_at: ''
 })
 

@@ -23,6 +23,7 @@ export interface LongTask {
   start_date: string
   end_date: string
   color: string
+  done: boolean
   source_module: ModuleKey | null
   source_id: number | null
   created_at: string

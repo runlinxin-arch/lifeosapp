@@ -1,15 +1,119 @@
 import { DatabaseSync } from 'node:sqlite'
 import fs from 'node:fs'
 
+export interface Migration {
+  version: number
+  up: (db: DatabaseSync) => void
+}
+
+function hasColumn(db: DatabaseSync, table: string, column: string): boolean {
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+  return rows.some((r) => r.name === column)
+}
+
+function addColumnIfMissing(db: DatabaseSync, table: string, column: string, ddl: string): void {
+  if (!hasColumn(db, table, column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`)
+}
+
+export const MIGRATIONS: Migration[] = [
+  {
+    // v1 —— M1 基线（全部 IF NOT EXISTS，对已存在的 M1 库同样安全）
+    version: 1,
+    up: (db) => db.exec(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        done INTEGER NOT NULL DEFAULT 0,
+        priority TEXT NOT NULL DEFAULT 'mid' CHECK (priority IN ('low','mid','high')),
+        done_at TEXT,
+        date TEXT NOT NULL,
+        source_module TEXT,
+        source_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_tasks_date ON tasks(date);
+      CREATE TABLE IF NOT EXISTS long_tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        color TEXT NOT NULL DEFAULT '#8b8d98',
+        source_module TEXT,
+        source_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_long_tasks_range ON long_tasks(start_date, end_date);
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `)
+  },
+  {
+    // v2 —— M2：日程事件表 + 长期任务完成标记
+    version: 2,
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          start_at TEXT NOT NULL,
+          end_at TEXT NOT NULL,
+          all_day INTEGER NOT NULL DEFAULT 0,
+          location TEXT,
+          note TEXT,
+          repeat_type TEXT NOT NULL DEFAULT 'none' CHECK (repeat_type IN ('none','daily','weekly','monthly')),
+          repeat_interval INTEGER NOT NULL DEFAULT 1,
+          repeat_until TEXT,
+          remind_minutes INTEGER NOT NULL DEFAULT 15,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_events_start ON events(start_at);
+      `)
+      addColumnIfMissing(db, 'long_tasks', 'done', 'INTEGER NOT NULL DEFAULT 0')
+    }
+  }
+]
+
+export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version
+
+/**
+ * 逐个执行未应用的迁移。
+ * 全部待应用迁移包在同一个事务里：任一迁移失败则整批回滚，
+ * 既不会留下半套表结构，user_version 也不会前进。
+ */
+export function runMigrations(db: DatabaseSync, migrations: Migration[]): void {
+  const current = Number(
+    (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version
+  )
+  const pending = migrations.filter((m) => m.version > current)
+  if (pending.length === 0) return
+
+  db.exec('BEGIN')
+  try {
+    for (const m of pending) {
+      m.up(db)
+      db.exec(`PRAGMA user_version = ${m.version}`)
+    }
+    db.exec('COMMIT')
+  } catch (err) {
+    db.exec('ROLLBACK')
+    throw err
+  }
+}
+
 export function openDb(file: string): DatabaseSync {
   if (file !== ':memory:') {
     const idx = Math.max(file.lastIndexOf('\\'), file.lastIndexOf('/'))
     if (idx > 0) fs.mkdirSync(file.substring(0, idx), { recursive: true })
   }
   const db = new DatabaseSync(file)
-  db.exec("PRAGMA journal_mode = WAL")
-  db.exec("PRAGMA foreign_keys = ON")
-  migrate(db)
+  db.exec('PRAGMA journal_mode = WAL')
+  db.exec('PRAGMA foreign_keys = ON')
+  runMigrations(db, MIGRATIONS)
   return db
 }
 
@@ -17,38 +121,4 @@ export function ensureDataDir(dir: string): void {
   fs.mkdirSync(dir, { recursive: true })
   fs.mkdirSync(`${dir}\\backups`, { recursive: true })
   fs.mkdirSync(`${dir}\\images`, { recursive: true })
-}
-
-function migrate(db: DatabaseSync): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      done INTEGER NOT NULL DEFAULT 0,
-      priority TEXT NOT NULL DEFAULT 'mid' CHECK (priority IN ('low','mid','high')),
-      done_at TEXT,
-      date TEXT NOT NULL,
-      source_module TEXT,
-      source_id INTEGER,
-      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_tasks_date ON tasks(date);
-    CREATE TABLE IF NOT EXISTS long_tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      start_date TEXT NOT NULL,
-      end_date TEXT NOT NULL,
-      color TEXT NOT NULL DEFAULT '#8b8d98',
-      source_module TEXT,
-      source_id INTEGER,
-      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_long_tasks_range ON long_tasks(start_date, end_date);
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-  `)
 }

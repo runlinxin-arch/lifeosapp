@@ -617,17 +617,20 @@ export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version
 
 export function runMigrations(db: DatabaseSync, migrations: Migration[]): void {
   const current = Number((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version)
-  for (const m of migrations) {
-    if (m.version <= current) continue
-    db.exec('BEGIN')
-    try {
+  const pending = migrations.filter((m) => m.version > current)
+  if (pending.length === 0) return
+
+  // 所有待应用迁移包在同一个事务里：任一失败则整批回滚，版本号也不前进
+  db.exec('BEGIN')
+  try {
+    for (const m of pending) {
       m.up(db)
       db.exec(`PRAGMA user_version = ${m.version}`)
-      db.exec('COMMIT')
-    } catch (err) {
-      db.exec('ROLLBACK')
-      throw err
     }
+    db.exec('COMMIT')
+  } catch (err) {
+    db.exec('ROLLBACK')
+    throw err
   }
 }
 
