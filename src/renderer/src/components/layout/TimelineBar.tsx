@@ -1,22 +1,36 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLongTasksStore } from '../../stores/longTasksStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { useToday } from '../../hooks/useToday'
 import { calcBlocks, timelineBarHeight, timelineGridHeight, timelineHeight, TIMELINE_BOTTOM_PAD, TIMELINE_GRID_MAX_H, TIMELINE_ROW_GAP, TIMELINE_TOP_PAD } from '../../lib/timeline'
 import { addDays, diffDays, formatCn } from '../../lib/dates'
 import type { LongTask } from '@shared/types'
 
+const SOURCE_LABEL: Record<string, string> = {
+  schedule: '日程', learning: '自我学习', dev: '开发', inspiration: '设计灵感',
+  fitness: '健身', diet: '饮食', entertainment: '游戏娱乐'
+}
+
 export function TimelineBar(): JSX.Element {
-  const { tasks, range, error, clearError, reload, create, remove } = useLongTasksStore()
+  const { tasks, range, error, clearError, reload, create, remove, setDone } = useLongTasksStore()
+  const { settings, load: loadSettings, set: setSetting } = useSettingsStore()
   const today = useToday()
   const [expanded, setExpanded] = useState(false)
   const [selected, setSelected] = useState<LongTask | null>(null)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ title: '', start: today, end: addDays(today, 13) })
 
-  // today 变化（跨零点）时重新拉取，避免范围与游标停留在昨天
-  useEffect(() => { void reload() }, [reload, today])
+  useEffect(() => { void loadSettings() }, [loadSettings])
+  // today 变化（跨零点）或显示范围变化时重新拉取
+  useEffect(() => { void reload() }, [reload, today, settings['timeline.rangeDays']])
 
-  const blocks = useMemo(() => calcBlocks(tasks, range.from, range.to), [tasks, range])
+  // 「显示已完成」只影响呈现，不影响数据
+  const visible = useMemo(
+    () => (settings['timeline.showDone'] ? tasks : tasks.filter((t) => !t.done)),
+    [tasks, settings]
+  )
+
+  const blocks = useMemo(() => calcBlocks(visible, range.from, range.to), [visible, range])
   const laneCount = Math.max(1, ...blocks.map((b) => b.lane + 1))
   const totalDays = diffDays(range.to, range.from) + 1
   const todayPct = (diffDays(today, range.from) / totalDays) * 100
@@ -57,7 +71,7 @@ export function TimelineBar(): JSX.Element {
           {blocks.map((b) => (
             <div
               key={b.id}
-              onClick={() => setSelected(tasks.find((t) => t.id === b.id) ?? null)}
+              onClick={() => setSelected(visible.find((t) => t.id === b.id) ?? null)}
               title={expanded ? undefined : b.title}
               className="absolute rounded cursor-pointer hover:brightness-125"
               style={{
@@ -72,14 +86,37 @@ export function TimelineBar(): JSX.Element {
           <div className="absolute top-0 bottom-0 w-[2px] bg-[#f39c12]" style={{ left: `${todayPct}%` }} />
         </div>
       </div>
+      <select
+        value={settings['timeline.rangeDays']}
+        onChange={(e) => void setSetting('timeline.rangeDays', Number(e.target.value) as 7 | 30 | 90)}
+        className="text-xs bg-[var(--card)] border border-[var(--border)] rounded px-1 py-1 text-[var(--muted)] whitespace-nowrap"
+        title="时间轴显示范围"
+      >
+        <option value={7}>未来 7 天</option>
+        <option value={30}>未来 30 天</option>
+        <option value={90}>未来 90 天</option>
+      </select>
+      <label className="flex items-center gap-1 text-xs text-[var(--muted)] whitespace-nowrap">
+        <input
+          type="checkbox"
+          checked={settings['timeline.showDone']}
+          onChange={(e) => void setSetting('timeline.showDone', e.target.checked)}
+          className="accent-[#7c8cff]"
+        />
+        显示已完成
+      </label>
       <button onClick={() => { clearError(); setCreating(true) }} className="text-xs bg-[var(--accent)] text-white rounded px-2 py-1 whitespace-nowrap">＋长期任务</button>
 
       {selected && (
         <div className="absolute z-50 top-11 right-40 bg-[var(--card)] border border-[var(--border)] rounded-lg p-3 shadow-xl w-56">
           <div className="font-bold text-sm mb-1">{selected.title}</div>
           <div className="text-xs text-[var(--muted)] mb-2">{formatCn(selected.start_date)} → {formatCn(selected.end_date)}（剩 {Math.max(0, diffDays(selected.end_date, today))} 天）</div>
-          {selected.source_module && <div className="text-[10px] text-[var(--muted)] mb-2">来源：{selected.source_module}</div>}
+          {selected.source_module && <div className="text-[10px] text-[var(--muted)] mb-2">来源：{SOURCE_LABEL[selected.source_module] ?? selected.source_module}</div>}
           <div className="flex gap-2">
+            <button
+              onClick={() => { void setDone(selected.id, !selected.done).then((ok) => { if (ok) setSelected(null) }) }}
+              className="text-xs px-2 py-1 rounded bg-[var(--border)]"
+            >{selected.done ? '标记未完成' : '标记完成'}</button>
             <button onClick={() => { void remove(selected.id).then((ok) => { if (ok) setSelected(null) }) }} className="text-xs px-2 py-1 rounded bg-red-500/20 text-red-300">删除</button>
             <button onClick={() => { clearError(); setSelected(null) }} className="text-xs px-2 py-1 rounded bg-[var(--border)]">关闭</button>
           </div>

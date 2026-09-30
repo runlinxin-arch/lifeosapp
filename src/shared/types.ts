@@ -49,6 +49,16 @@ export const MODULE_COLORS: Record<ModuleKey, string> = {
 
 export type RepeatType = 'none' | 'daily' | 'weekly' | 'monthly'
 
+export type LongTaskPatch = Partial<Pick<LongTask, 'title' | 'start_date' | 'end_date' | 'done' | 'color'>>
+
+/** 模块事项（学习项 / 开发项目等）标记为长期任务的入参 */
+export interface MarkFromSourceInput {
+  title: string
+  startDate: string
+  endDate: string
+  sourceModule: ModuleKey
+  sourceId: number
+}
 export interface Event {
   id: number
   title: string

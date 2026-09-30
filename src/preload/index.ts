@@ -10,6 +10,10 @@ const api = {
   longTasks: {
     listRange: (from: string, to: string): Promise<unknown> => ipcRenderer.invoke('longTasks:listRange', from, to),
     create: (input: unknown): Promise<unknown> => ipcRenderer.invoke('longTasks:create', input),
+    update: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('longTasks:update', id, patch),
+    setDone: (id: number, done: boolean): Promise<unknown> => ipcRenderer.invoke('longTasks:setDone', id, done),
+    markFromSource: (input: unknown): Promise<unknown> => ipcRenderer.invoke('longTasks:markFromSource', input),
+    removeBySource: (m: string, id: number): Promise<unknown> => ipcRenderer.invoke('longTasks:removeBySource', m, id),
     remove: (id: number): Promise<unknown> => ipcRenderer.invoke('longTasks:delete', id)
   },
   events: {

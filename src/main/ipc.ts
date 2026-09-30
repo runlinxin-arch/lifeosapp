@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import type { DatabaseSync } from 'node:sqlite'
+import type { ModuleKey } from '@shared/types'
 import * as tasks from './db/tasks'
 import * as longTasks from './db/longTasks'
 import * as events from './db/events'
@@ -18,6 +19,10 @@ export function registerIpc(db: DatabaseSync): void {
 
   ipcMain.handle('longTasks:listRange', (_e, from: string, to: string) => longTasks.listRange(db, from, to))
   ipcMain.handle('longTasks:create', (_e, input: longTasks.LongTaskInput) => longTasks.createLongTask(db, input))
+  ipcMain.handle('longTasks:update', (_e, id: number, patch: longTasks.LongTaskPatch) => longTasks.updateLongTask(db, id, patch))
+  ipcMain.handle('longTasks:setDone', (_e, id: number, done: boolean) => longTasks.setLongTaskDone(db, id, done))
+  ipcMain.handle('longTasks:markFromSource', (_e, input: longTasks.MarkFromSourceInput) => longTasks.markFromSource(db, input))
+  ipcMain.handle('longTasks:removeBySource', (_e, m: ModuleKey, id: number) => longTasks.removeBySource(db, m, id))
   ipcMain.handle('longTasks:delete', (_e, id: number) => longTasks.deleteLongTask(db, id))
 
   ipcMain.handle('events:listInRange', (_e, from: string, to: string) => events.listEvents(db, from, to))

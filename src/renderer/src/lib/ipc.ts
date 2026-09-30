@@ -1,5 +1,6 @@
 import type {
-  Event, EventInput, EventPatch, LongTask, Occurrence, Priority, Task
+  Event, EventInput, EventPatch, LongTask, LongTaskPatch, MarkFromSourceInput,
+  ModuleKey, Occurrence, Priority, Task
 } from '@shared/types'
 import type { Settings, SettingsKey } from '@shared/settings'
 
@@ -24,6 +25,10 @@ interface LifeosApi {
   longTasks: {
     listRange(from: string, to: string): Promise<LongTask[]>
     create(input: LongTaskInput): Promise<LongTask>
+    update(id: number, patch: LongTaskPatch): Promise<LongTask>
+    setDone(id: number, done: boolean): Promise<LongTask>
+    markFromSource(input: MarkFromSourceInput): Promise<LongTask>
+    removeBySource(sourceModule: ModuleKey, sourceId: number): Promise<void>
     remove(id: number): Promise<void>
   }
   events: {
