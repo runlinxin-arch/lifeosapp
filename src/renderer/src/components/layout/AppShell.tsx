@@ -9,7 +9,7 @@ interface AppShellProps {
 export function AppShell({ sidebar, timeline, children }: AppShellProps): JSX.Element {
   return (
     <div className="h-full flex flex-col">
-      <header className="relative h-10 shrink-0 border-b border-[var(--border)] bg-[var(--card)] flex items-center px-3">
+      <header className="relative min-h-[40px] shrink-0 border-b border-[var(--border)] bg-[var(--card)] flex items-center px-3">
         {timeline}
       </header>
       <div className="flex flex-1 min-h-0">

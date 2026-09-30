@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLongTasksStore } from '../../stores/longTasksStore'
-import { calcBlocks } from '../../lib/timeline'
+import { calcBlocks, timelineBarHeight, timelineGridHeight, timelineHeight, TIMELINE_BOTTOM_PAD, TIMELINE_GRID_MAX_H, TIMELINE_ROW_GAP, TIMELINE_TOP_PAD } from '../../lib/timeline'
 import { todayStr, addDays, diffDays, formatCn } from '../../lib/dates'
 import type { LongTask } from '@shared/types'
 
@@ -34,11 +34,13 @@ export function TimelineBar(): JSX.Element {
     setForm({ title: '', start: todayStr(), end: addDays(todayStr(), 13) })
   }
 
-  const barHeight = expanded ? 14 : 8
-  const rowHeight = barHeight + 4
+  const barHeight = timelineBarHeight(expanded)
+  const rowHeight = barHeight + TIMELINE_ROW_GAP
+  const headerHeight = timelineHeight(expanded, laneCount)
+  const gridHeight = timelineGridHeight(expanded, laneCount)
 
   return (
-    <div className="flex items-center gap-3 w-full px-2">
+    <div className="flex items-center gap-3 w-full px-2" style={{ height: headerHeight }}>
       <button onClick={() => setExpanded(!expanded)} className="text-[var(--muted)] hover:text-[var(--text)] text-xs whitespace-nowrap">
         {expanded ? '收起 ⤡' : '展开 ⤢'}
       </button>
@@ -46,7 +48,10 @@ export function TimelineBar(): JSX.Element {
         {ticks.map((t, i) => (
           <span key={i} className="absolute top-0 text-[9px] text-[var(--muted)] -translate-x-1/2" style={{ left: `${t.leftPct}%` }}>{t.label}</span>
         ))}
-        <div className="relative w-full bg-[var(--border)] rounded" style={{ height: laneCount * rowHeight + 6, marginTop: 14 }}>
+        <div
+          className="relative w-full bg-[var(--border)] rounded overflow-y-auto overflow-x-hidden"
+          style={{ height: gridHeight, marginTop: TIMELINE_TOP_PAD, maxHeight: TIMELINE_GRID_MAX_H }}
+        >
           {blocks.map((b) => (
             <div
               key={b.id}
