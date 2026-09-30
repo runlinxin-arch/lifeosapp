@@ -39,3 +39,49 @@ export const MODULE_COLORS: Record<ModuleKey, string> = {
   diet: '#f39c12',
   entertainment: '#a06ee1'
 }
+
+export type RepeatType = 'none' | 'daily' | 'weekly' | 'monthly'
+
+export interface Event {
+  id: number
+  title: string
+  start_at: string          // 'YYYY-MM-DD HH:MM'
+  end_at: string            // 'YYYY-MM-DD HH:MM'
+  all_day: boolean
+  location: string | null
+  note: string | null
+  repeat_type: RepeatType
+  repeat_interval: number
+  repeat_until: string | null   // 'YYYY-MM-DD'
+  remind_minutes: number
+  created_at: string
+  updated_at: string
+}
+
+export interface EventInput {
+  title: string
+  startAt: string
+  endAt: string
+  allDay?: boolean
+  location?: string | null
+  note?: string | null
+  repeatType?: RepeatType
+  repeatInterval?: number
+  repeatUntil?: string | null
+  remindMinutes?: number
+}
+
+export type EventPatch = Partial<EventInput>
+
+/** 事件在某个具体日期的发生项（重复事件展开后的结果） */
+export interface Occurrence {
+  eventId: number
+  title: string
+  date: string          // 'YYYY-MM-DD'
+  startAt: string       // 'YYYY-MM-DD HH:MM'
+  endAt: string
+  allDay: boolean
+  location: string | null
+  note: string | null
+  remindMinutes: number
+}
