@@ -6,7 +6,7 @@ export type PageKey =
 
 const GROUPS: { label: string; items: { key: PageKey; icon: string; label: string; disabled?: boolean }[] }[] = [
   { label: '', items: [{ key: 'today', icon: '🏠', label: '今天' }] },
-  { label: '', items: [{ key: 'schedule', icon: '📅', label: '日程', disabled: true }] },
+  { label: '', items: [{ key: 'schedule', icon: '📅', label: '日程' }] },
   {
     label: '工作',
     items: [
