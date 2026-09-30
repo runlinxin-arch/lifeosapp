@@ -56,7 +56,11 @@ export function updateLongTask(db: DatabaseSync, id: number, patch: LongTaskPatc
   const title = patch.title !== undefined ? assertNonEmpty(patch.title, '长期任务标题') : cur.title
   const start = patch.start_date ?? cur.start_date
   const end = patch.end_date ?? cur.end_date
-  assertSpan(start, end)
+  // 仅当日期真的被改动时才校验区间：
+  // M1 的新建表单没有校验，库里可能存在同日/倒挂的历史记录，
+  // 不能让「标记完成 / 改名 / 改色」这类操作被它们卡死
+  const datesChanged = start !== cur.start_date || end !== cur.end_date
+  if (datesChanged) assertSpan(start, end)
   db.prepare(`
     UPDATE long_tasks SET title=?, start_date=?, end_date=?, color=?, done=?,
       updated_at=datetime('now','localtime')

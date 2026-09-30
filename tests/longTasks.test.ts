@@ -135,3 +135,42 @@ describe('longTasks M2 增强', () => {
     expect(listRange(db, '2026-01-01', '2027-01-01').map((t) => t.title)).toEqual(['独立任务'])
   })
 })
+
+describe('M1 遗留数据兼容（≥2 天校验只约束"改动日期"的操作）', () => {
+  // M1 的建立表单没有校验，库里可能存在同日/倒挂的历史记录
+  const insertLegacy = (start: string, end: string): number => {
+    const info = db.prepare(
+      'INSERT INTO long_tasks (title, start_date, end_date, color) VALUES (?, ?, ?, ?)'
+    ).run('M1 遗留任务', start, end, '#8b8d98')
+    return Number(info.lastInsertRowid)
+  }
+
+  it('同日的历史长期任务仍然可以标记完成', () => {
+    const id = insertLegacy('2026-09-01', '2026-09-01')
+    expect(() => setLongTaskDone(db, id, true)).not.toThrow()
+    expect(setLongTaskDone(db, id, true).done).toBe(true)
+  })
+
+  it('同日的历史长期任务仍然可以改名与改色', () => {
+    const id = insertLegacy('2026-09-01', '2026-09-01')
+    expect(updateLongTask(db, id, { title: '改名' }).title).toBe('改名')
+    expect(updateLongTask(db, id, { color: '#4ade80' }).color).toBe('#4ade80')
+  })
+
+  it('但只要动了日期，就仍然受 ≥2 天约束', () => {
+    const id = insertLegacy('2026-09-01', '2026-09-01')
+    expect(() => updateLongTask(db, id, { end_date: '2026-09-05' })).not.toThrow()
+    expect(() => updateLongTask(db, id, { end_date: '2026-09-01' })).toThrow('2 天')
+  })
+
+  it('把历史记录的日期改回不足 2 天被拒绝，原值不变', () => {
+    const id = insertLegacy('2026-09-01', '2026-09-10')
+    expect(() => updateLongTask(db, id, { start_date: '2026-09-10' })).toThrow('2 天')
+    expect(listRange(db, '2026-09-01', '2026-09-10')[0].start_date).toBe('2026-09-01')
+  })
+
+  it('非日期的补丁不受历史区间影响', () => {
+    const id = insertLegacy('2026-09-10', '2026-09-01') // 倒挂的历史脏数据
+    expect(updateLongTask(db, id, { title: '清理' }).title).toBe('清理')
+  })
+})
