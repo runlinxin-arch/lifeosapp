@@ -3,8 +3,9 @@ import path from 'node:path'
 import { ensureDataDir } from './db'
 import { startupOpen } from './backup'
 import { registerIpc } from './ipc'
+import { startReminders } from './reminders'
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -28,6 +29,8 @@ function createWindow(): void {
   } else {
     void win.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
+
+  return win
 }
 
 void app.whenReady().then(() => {
@@ -35,12 +38,20 @@ void app.whenReady().then(() => {
   ensureDataDir(dataDir)
   const { db, notice } = startupOpen(path.join(dataDir, 'app.db'), path.join(dataDir, 'backups'))
   registerIpc(db)
-  createWindow()
+
+  let mainWindow: BrowserWindow | null = createWindow()
+  const stopReminders = startReminders(db, () => mainWindow)
+
   if (notice) {
     void dialog.showMessageBox({ type: 'warning', title: 'LifeOS 数据恢复', message: notice })
   }
+
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
+  })
+  app.on('before-quit', () => {
+    stopReminders()
+    db.close()
   })
 })
 
