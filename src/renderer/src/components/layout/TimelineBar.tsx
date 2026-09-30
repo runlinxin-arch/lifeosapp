@@ -1,21 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLongTasksStore } from '../../stores/longTasksStore'
+import { useToday } from '../../hooks/useToday'
 import { calcBlocks, timelineBarHeight, timelineGridHeight, timelineHeight, TIMELINE_BOTTOM_PAD, TIMELINE_GRID_MAX_H, TIMELINE_ROW_GAP, TIMELINE_TOP_PAD } from '../../lib/timeline'
-import { todayStr, addDays, diffDays, formatCn } from '../../lib/dates'
+import { addDays, diffDays, formatCn } from '../../lib/dates'
 import type { LongTask } from '@shared/types'
 
 export function TimelineBar(): JSX.Element {
   const { tasks, range, error, clearError, reload, create, remove } = useLongTasksStore()
+  const today = useToday()
   const [expanded, setExpanded] = useState(false)
   const [selected, setSelected] = useState<LongTask | null>(null)
   const [creating, setCreating] = useState(false)
-  const [form, setForm] = useState({ title: '', start: todayStr(), end: addDays(todayStr(), 13) })
+  const [form, setForm] = useState({ title: '', start: today, end: addDays(today, 13) })
 
-  useEffect(() => { void reload() }, [reload])
+  // today 变化（跨零点）时重新拉取，避免范围与游标停留在昨天
+  useEffect(() => { void reload() }, [reload, today])
 
   const blocks = useMemo(() => calcBlocks(tasks, range.from, range.to), [tasks, range])
   const laneCount = Math.max(1, ...blocks.map((b) => b.lane + 1))
-  const today = todayStr()
   const totalDays = diffDays(range.to, range.from) + 1
   const todayPct = (diffDays(today, range.from) / totalDays) * 100
   const ticks = useMemo(() => {
@@ -31,7 +33,7 @@ export function TimelineBar(): JSX.Element {
     // 失败时保持弹窗打开并把原因显示出来
     if (!(await create(form.title.trim(), form.start, form.end))) return
     setCreating(false)
-    setForm({ title: '', start: todayStr(), end: addDays(todayStr(), 13) })
+    setForm({ title: '', start: today, end: addDays(today, 13) })
   }
 
   const barHeight = timelineBarHeight(expanded)

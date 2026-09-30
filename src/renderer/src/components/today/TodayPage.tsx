@@ -2,11 +2,13 @@ import { useEffect } from 'react'
 import { TaskList } from './TaskList'
 import { TodayCards } from './TodayCards'
 import { useTasksStore } from '../../stores/tasksStore'
-import { todayStr } from '../../lib/dates'
+import { useToday } from '../../hooks/useToday'
 
 export function TodayPage(): JSX.Element {
+  const today = useToday()
   const load = useTasksStore((s) => s.load)
-  useEffect(() => { void load(todayStr()) }, [load])
+  // today 变化（跨零点）时自动切到新的一天
+  useEffect(() => { void load(today) }, [load, today])
   return (
     <div className="h-full flex">
       <section className="w-[55%] p-4 border-r border-[var(--border)] overflow-auto">
