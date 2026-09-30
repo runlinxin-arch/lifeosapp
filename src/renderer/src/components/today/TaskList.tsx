@@ -4,19 +4,25 @@ import { TaskItem } from './TaskItem'
 import { useTasksStore } from '../../stores/tasksStore'
 
 export function TaskList(): JSX.Element {
-  const { tasks, add, toggle, remove } = useTasksStore()
+  const { tasks, error, clearError, add, toggle, remove } = useTasksStore()
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<Priority>('mid')
 
   const submit = async (): Promise<void> => {
     const t = title.trim()
     if (!t) return
-    await add(t, priority)
-    setTitle('')
+    // 只有成功才清空输入，失败时保留用户已经敲进去的内容
+    if (await add(t, priority)) setTitle('')
   }
 
   return (
     <div className="flex flex-col gap-2">
+      {error && (
+        <div className="flex items-center gap-2 text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+          <span className="flex-1">{error}</span>
+          <button onClick={clearError} className="text-[var(--muted)] hover:text-[var(--text)]" title="关闭">✕</button>
+        </div>
+      )}
       <div className="flex gap-2">
         <input
           value={title}
