@@ -4,6 +4,8 @@
 - 依据：[PRD.md](./PRD.md)、[docs/2026-09-29-life-os-design.md](./docs/2026-09-29-life-os-design.md)
 - 详细执行计划：每里程碑开工前产出，存 `docs/plans/`
   - M1 详细计划：[docs/plans/2026-09-29-m1-skeleton.md](./docs/plans/2026-09-29-m1-skeleton.md)
+  - M2 详细计划：[docs/plans/2026-09-30-m2-core-interop.md](./docs/plans/2026-09-30-m2-core-interop.md)
+  - M2 验收记录：[docs/plans/2026-09-30-m2-acceptance.md](./docs/plans/2026-09-30-m2-acceptance.md)
 
 ## 技术栈（全里程碑共用）
 
