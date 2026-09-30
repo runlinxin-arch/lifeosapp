@@ -1,4 +1,5 @@
-import { addDays } from './dates'
+import type { Occurrence } from './types'
+import { addDays, timeToMinutes } from './dates'
 
 /** 周一为一周之始 */
 export function weekStart(dateStr: string): string {
@@ -17,4 +18,98 @@ export function monthMatrix(anchor: string): string[] {
   const first = `${anchor.slice(0, 7)}-01`
   const start = weekStart(first)
   return Array.from({ length: 42 }, (_, i) => addDays(start, i))
+}
+
+export interface WeekBlock {
+  occurrence: Occurrence
+  dayIndex: number
+  topPct: number
+  heightPct: number
+  lane: number
+  laneCount: number
+}
+
+export interface WeekLayout {
+  days: string[]
+  allDay: Occurrence[]
+  blocks: WeekBlock[]
+}
+
+/** 一天的分钟数，用于把时间换算成纵向百分比 */
+const MINUTES_PER_DAY = 1440
+/** 时间倒挂或零时长事件的兜底时长（分钟） */
+const FALLBACK_DURATION = 30
+
+export function layoutWeek(occurrences: Occurrence[], anchor: string, minHeightPct = 2): WeekLayout {
+  const days = weekDays(anchor)
+  const index = new Map(days.map((d, i) => [d, i]))
+
+  const inWeek = occurrences.filter((o) => index.has(o.date))
+  const allDay = inWeek.filter((o) => o.allDay)
+  const timed = inWeek.filter((o) => !o.allDay)
+
+  const byDay = new Map<number, Occurrence[]>()
+  for (const o of timed) {
+    const i = index.get(o.date)!
+    const list = byDay.get(i) ?? []
+    list.push(o)
+    byDay.set(i, list)
+  }
+
+  const blocks: WeekBlock[] = []
+  for (const [dayIndex, list] of byDay) {
+    const sorted = [...list].sort((a, b) => a.startAt.localeCompare(b.startAt))
+    const laneEnds: number[] = []
+    const placed = sorted.map((o) => {
+      const start = timeToMinutes(o.startAt.slice(11))
+      let end = timeToMinutes(o.endAt.slice(11))
+      if (end <= start) end = start + FALLBACK_DURATION
+      let lane = laneEnds.findIndex((e) => e <= start)
+      if (lane === -1) {
+        lane = laneEnds.length
+        laneEnds.push(0)
+      }
+      laneEnds[lane] = end
+      return { o, start, end, lane }
+    })
+    const laneCount = laneEnds.length
+    for (const p of placed) {
+      blocks.push({
+        occurrence: p.o,
+        dayIndex,
+        topPct: (p.start / MINUTES_PER_DAY) * 100,
+        heightPct: Math.max(((p.end - p.start) / MINUTES_PER_DAY) * 100, minHeightPct),
+        lane: p.lane,
+        laneCount
+      })
+    }
+  }
+
+  return { days, allDay, blocks }
+}
+
+export interface MonthCell {
+  date: string
+  inMonth: boolean
+  items: Occurrence[]
+  extra: number
+}
+
+export function layoutMonth(occurrences: Occurrence[], anchor: string, maxPerDay = 3): MonthCell[] {
+  const month = anchor.slice(0, 7)
+  const byDate = new Map<string, Occurrence[]>()
+  for (const o of occurrences) {
+    const list = byDate.get(o.date) ?? []
+    list.push(o)
+    byDate.set(o.date, list)
+  }
+  return monthMatrix(anchor).map((date) => {
+    const all = (byDate.get(date) ?? []).sort((a, b) => a.startAt.localeCompare(b.startAt))
+    return {
+      date,
+      inMonth: date.slice(0, 7) === month,
+      items: all.slice(0, maxPerDay),
+      extra: Math.max(0, all.length - maxPerDay)
+    }
+  })
 }
