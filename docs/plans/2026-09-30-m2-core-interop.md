@@ -1826,7 +1826,7 @@ export type Settings = { [K in SettingsKey]: (typeof DEFAULT_SETTINGS)[K] }
 Run: `npm test`
 Expected: PASS（全部用例）
 
-Run: `npx tsc -p tsconfig.node.json --noEmit && npx tsc -p tsconfig.web.json --noEmit`
+Run: `npm run typecheck`
 Expected: 无输出（无类型错误）
 
 - [ ] **Step 9: 手动验收 IPC 连通**
@@ -3753,7 +3753,7 @@ git commit -m "feat: 事件系统通知提醒（纯函数 TDD + 主进程 30s �
 Run: `npm test`
 Expected: PASS —— 至少 12 个测试文件、80+ 用例全绿
 
-Run: `npx tsc -p tsconfig.node.json --noEmit && npx tsc -p tsconfig.web.json --noEmit`
+Run: `npm run typecheck`
 Expected: 无输出
 
 - [ ] **Step 2: 逐条走 PRD 验收（把结果写进 `docs/plans/2026-09-30-m2-acceptance.md`）**
