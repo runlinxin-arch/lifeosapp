@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { openDb } from '../src/main/db'
-import { listTasksByDate, createTask, updateTask, deleteTask } from '../src/main/db/tasks'
+import { listTasksByDate, createTask, updateTask, deleteTask, getTask } from '../src/main/db/tasks'
 
 let db: ReturnType<typeof openDb>
 beforeEach(() => { db = openDb(':memory:') })
@@ -63,5 +63,36 @@ describe('done_at 时间戳一致性（隐患修复回归）', () => {
     const first = updateTask(db, t.id, { done: true })
     const second = updateTask(db, t.id, { title: '改名' })
     expect(second.done_at).toBe(first.done_at)
+  })
+})
+
+describe('待办数据层输入校验（隐患修复回归）', () => {
+  it('空标题不入库', () => {
+    expect(() => createTask(db, { title: '', date: '2026-09-30' })).toThrow('待办标题不能为空')
+    expect(() => createTask(db, { title: '   ', date: '2026-09-30' })).toThrow('待办标题不能为空')
+    expect(listTasksByDate(db, '2026-09-30')).toHaveLength(0)
+  })
+
+  it('标题首尾空白被去掉', () => {
+    expect(createTask(db, { title: '  写日报  ', date: '2026-09-30' }).title).toBe('写日报')
+  })
+
+  it('非法日期不入库（格式错与日历上不存在都拒绝）', () => {
+    expect(() => createTask(db, { title: 'a', date: 'abc' })).toThrow('待办日期')
+    expect(() => createTask(db, { title: 'a', date: '2026-9-30' })).toThrow('待办日期')
+    expect(() => createTask(db, { title: 'a', date: '2026-02-31' })).toThrow('不是有效日期')
+    expect(listTasksByDate(db, '2026-09-30')).toHaveLength(0)
+  })
+
+  it('非法优先级在建与改两个入口都被拒绝', () => {
+    expect(() => createTask(db, { title: 'a', date: '2026-09-30', priority: 'urgent' as never })).toThrow('优先级')
+    const t = createTask(db, { title: 'a', date: '2026-09-30' })
+    expect(() => updateTask(db, t.id, { priority: 'urgent' as never })).toThrow('优先级')
+  })
+
+  it('更新为空白标题被拒绝，且原值不被修改', () => {
+    const t = createTask(db, { title: '原标题', date: '2026-09-30' })
+    expect(() => updateTask(db, t.id, { title: '   ' })).toThrow('待办标题不能为空')
+    expect(getTask(db, t.id)!.title).toBe('原标题')
   })
 })

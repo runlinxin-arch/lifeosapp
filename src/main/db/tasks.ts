@@ -1,5 +1,14 @@
 import type { DatabaseSync } from 'node:sqlite'
 import type { Priority, Task } from '@shared/types'
+import { assertDateStr, assertNonEmpty } from './validate'
+
+const PRIORITIES: readonly Priority[] = ['low', 'mid', 'high']
+
+function assertPriority(priority: string): void {
+  if (!PRIORITIES.includes(priority as Priority)) {
+    throw new Error(`优先级只能是 low / mid / high，收到：${priority}`)
+  }
+}
 
 export interface TaskInput {
   title: string
@@ -22,9 +31,12 @@ export function listTasksByDate(db: DatabaseSync, date: string): Task[] {
 }
 
 export function createTask(db: DatabaseSync, input: TaskInput): Task {
+  const title = assertNonEmpty(input.title, '待办标题')
+  assertDateStr(input.date, '待办日期')
+  if (input.priority !== undefined) assertPriority(input.priority)
   const info = db.prepare(
     'INSERT INTO tasks (title, priority, date) VALUES (?, ?, ?)'
-  ).run(input.title, input.priority ?? 'mid', input.date)
+  ).run(title, input.priority ?? 'mid', input.date)
   return getTask(db, Number(info.lastInsertRowid))!
 }
 
@@ -36,7 +48,8 @@ export function getTask(db: DatabaseSync, id: number): Task | null {
 export function updateTask(db: DatabaseSync, id: number, patch: TaskPatch): Task {
   const cur = getTask(db, id)
   if (!cur) throw new Error(`task ${id} not found`)
-  const title = patch.title ?? cur.title
+  const title = patch.title !== undefined ? assertNonEmpty(patch.title, '待办标题') : cur.title
+  if (patch.priority !== undefined) assertPriority(patch.priority)
   const priority = patch.priority ?? cur.priority
   const done = patch.done ?? cur.done
   const flag = done ? 1 : 0
