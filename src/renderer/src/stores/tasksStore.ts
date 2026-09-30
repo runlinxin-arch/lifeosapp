@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Task, Priority } from '@shared/types'
-import { api } from '../lib/ipc'
+import { api, type ConvertTaskInput } from '../lib/ipc'
 import { todayStr } from '../lib/dates'
 import { formatIpcError } from '../lib/errors'
 
@@ -13,6 +13,8 @@ interface TasksState {
   add: (title: string, priority: Priority) => Promise<boolean>
   toggle: (id: number) => Promise<boolean>
   remove: (id: number) => Promise<boolean>
+  /** 待办转日程：成功后本行消失，由日程汇入形态重新出现 */
+  convert: (id: number, input: ConvertTaskInput) => Promise<boolean>
 }
 
 export const useTasksStore = create<TasksState>((set, get) => {
@@ -54,6 +56,13 @@ export const useTasksStore = create<TasksState>((set, get) => {
     remove: (id) =>
       run(async () => {
         await api.tasks.remove(id)
+        set({ tasks: await api.tasks.list(todayStr()) })
+      }),
+
+    convert: (id, input) =>
+      run(async () => {
+        await api.interop.convertTask(id, input)
+        await api.interop.syncDates([input.startAt.slice(0, 10)])
         set({ tasks: await api.tasks.list(todayStr()) })
       })
   }

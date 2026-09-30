@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { layoutMonth, layoutWeek, monthMatrix, weekDays, weekStart } from '../src/shared/layout'
+import { hourFromOffsetY, layoutMonth, layoutWeek, monthMatrix, weekDays, weekStart } from '../src/shared/layout'
 import type { Occurrence } from '../src/shared/types'
 
 const occ = (date: string, start: string, end: string, allDay = false, id = 1): Occurrence => ({
@@ -141,5 +141,37 @@ describe('layoutMonth', () => {
     const cell = layoutMonth(list, '2026-09-15').find((c) => c.date === '2026-09-30')!
     expect(cell.items).toHaveLength(3)
     expect(cell.extra).toBe(0)
+  })
+})
+
+describe('hourFromOffsetY（待办拖入格子的落点换算）', () => {
+  const H = 44
+
+  it('落在格子上沿取下整点', () => {
+    expect(hourFromOffsetY(0, H)).toBe(0)
+    expect(hourFromOffsetY(44, H)).toBe(1)
+    expect(hourFromOffsetY(9 * H, H)).toBe(9)
+  })
+
+  it('格内任意位置归到该小时', () => {
+    expect(hourFromOffsetY(9 * H + 1, H)).toBe(9)
+    expect(hourFromOffsetY(9 * H + H - 1, H)).toBe(9)
+  })
+
+  it('超出底部的落点夹到 23 点，不会产生 24 点', () => {
+    expect(hourFromOffsetY(24 * H, H)).toBe(23)
+    expect(hourFromOffsetY(99999, H)).toBe(23)
+  })
+
+  it('负的落点夹到 0 点', () => {
+    expect(hourFromOffsetY(-10, H)).toBe(0)
+  })
+
+  it('非法输入回退到默认小时', () => {
+    expect(hourFromOffsetY(NaN, H)).toBe(9)
+    expect(hourFromOffsetY(100, 0)).toBe(9)
+    expect(hourFromOffsetY(100, -5)).toBe(9)
+    expect(hourFromOffsetY(100, NaN)).toBe(9)
+    expect(hourFromOffsetY(100, H, 14)).toBe(2)
   })
 })

@@ -94,8 +94,11 @@ export interface MonthCell {
   items: Occurrence[]
   extra: number
 }
-
-export function layoutMonth(occurrences: Occurrence[], anchor: string, maxPerDay = 3): MonthCell[] {
+/** 拖拽落点 → 小时（0–23）。非法输入回退到上班时间的默认小时 */
+export function hourFromOffsetY(offsetY: number, hourHeight: number, fallbackHour = 9): number {
+  if (!Number.isFinite(offsetY) || !Number.isFinite(hourHeight) || hourHeight <= 0) return fallbackHour
+  return Math.max(0, Math.min(23, Math.floor(offsetY / hourHeight)))
+}export function layoutMonth(occurrences: Occurrence[], anchor: string, maxPerDay = 3): MonthCell[] {
   const month = anchor.slice(0, 7)
   const byDate = new Map<string, Occurrence[]>()
   for (const o of occurrences) {

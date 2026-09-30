@@ -1,22 +1,33 @@
 import { useEffect, useState } from 'react'
-import type { Event } from '@shared/types'
+import type { Event, Occurrence } from '@shared/types'
 import { useEventsStore } from '../../stores/eventsStore'
+import { useTasksStore } from '../../stores/tasksStore'
 import { EventDialog } from './EventDialog'
+import { ConvertDialog } from './ConvertDialog'
 import { WeekView } from './WeekView'
 import { MonthView } from './MonthView'
 import { addDays, addMonthsClamped, formatCn } from '@shared/dates'
 import { weekStart } from '@shared/layout'
 import { useToday } from '../../hooks/useToday'
 
+interface DroppedTask {
+  taskId: number
+  title: string
+  startAt: string
+  endAt: string
+}
+
 export function SchedulePage(): JSX.Element {
   const {
     view, anchor, events, occurrences, error, clearError,
     setView, setAnchor, reload, create, update, remove
   } = useEventsStore()
+  const convertTask = useTasksStore((s) => s.convert)
   const today = useToday()
   const [editing, setEditing] = useState<Event | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [defaultStart, setDefaultStart] = useState<string | undefined>(undefined)
+  const [dropped, setDropped] = useState<DroppedTask | null>(null)
 
   useEffect(() => { void reload() }, [reload, today])
 
@@ -64,7 +75,14 @@ export function SchedulePage(): JSX.Element {
 
       <div className="flex-1 min-h-0 overflow-auto">
         {view === 'week'
-          ? <WeekView occurrences={occurrences} anchor={anchor} events={events} onCreateAt={openCreate} onEdit={openEdit} />
+          ? <WeekView
+              occurrences={occurrences}
+              anchor={anchor}
+              events={events}
+              onCreateAt={openCreate}
+              onEdit={openEdit}
+              onDropTask={setDropped}
+            />
           : <MonthView occurrences={occurrences} anchor={anchor} events={events}
               onPickDay={(d) => { setAnchor(d); setView('week') }} onOpenEvent={openEdit} />}
       </div>
@@ -76,6 +94,17 @@ export function SchedulePage(): JSX.Element {
         onClose={() => setDialogOpen(false)}
         onSubmit={(input) => (editing ? update(editing.id, input) : create(input))}
         onDelete={remove}
+      />
+
+      <ConvertDialog
+        task={dropped ? { id: dropped.taskId, title: dropped.title, date: dropped.startAt.slice(0, 10) } : null}
+        onClose={() => setDropped(null)}
+        onSubmit={async (startAt, endAt) => {
+          if (!dropped) return
+          const ok = await convertTask(dropped.taskId, { startAt, endAt, location: null, note: null, remindMinutes: 15 })
+          if (ok) { setDropped(null); await reload() }
+          else throw new Error('转换失败，请重试')
+        }}
       />
     </div>
   )

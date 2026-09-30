@@ -13,7 +13,7 @@ export default function App(): JSX.Element {
       timeline={<TimelineBar />}
     >
       {page === 'today'
-        ? <TodayPage />
+        ? <TodayPage onJumpToSchedule={() => setPage('schedule')} />
         : page === 'schedule'
           ? <SchedulePage />
           : <div className="p-4 text-[var(--muted)]">该模块将在后续里程碑开放</div>}

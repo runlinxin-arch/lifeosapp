@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import type { Priority } from '@shared/types'
+import type { Priority, Task } from '@shared/types'
 import { TaskItem } from './TaskItem'
 import { useTasksStore } from '../../stores/tasksStore'
+import { ConvertDialog } from '../schedule/ConvertDialog'
 
-export function TaskList(): JSX.Element {
-  const { tasks, error, clearError, add, toggle, remove } = useTasksStore()
+export function TaskList({ onJumpToSchedule }: { onJumpToSchedule?: () => void }): JSX.Element {
+  const { tasks, error, clearError, add, toggle, remove, convert } = useTasksStore()
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<Priority>('mid')
+  const [converting, setConverting] = useState<Task | null>(null)
 
   const submit = async (): Promise<void> => {
     const t = title.trim()
@@ -37,8 +39,35 @@ export function TaskList(): JSX.Element {
           <option value="high">高</option>
         </select>
       </div>
-      {tasks.map((t) => <TaskItem key={t.id} task={t} onToggle={toggle} onRemove={remove} />)}
+
+      {tasks.map((t) => (
+        <div
+          key={t.id}
+          draggable={t.source_module !== 'event'}
+          onDragStart={(e) => e.dataTransfer.setData('text/lifeos-task', JSON.stringify({ id: t.id, title: t.title }))}
+        >
+          <TaskItem
+            task={t}
+            onToggle={toggle}
+            onRemove={remove}
+            onConvert={setConverting}
+            onJump={() => onJumpToSchedule?.()}
+          />
+        </div>
+      ))}
+
       {tasks.length === 0 && <div className="text-center text-[var(--muted)] text-sm py-8">今天还没有待办，加一个吧</div>}
+
+      <ConvertDialog
+        task={converting ? { id: converting.id, title: converting.title, date: converting.date } : null}
+        onClose={() => setConverting(null)}
+        onSubmit={async (startAt, endAt) => {
+          if (!converting) return
+          const ok = await convert(converting.id, { startAt, endAt, location: null, note: null, remindMinutes: 15 })
+          if (ok) setConverting(null)
+          else throw new Error('转换失败，请重试')
+        }}
+      />
     </div>
   )
 }

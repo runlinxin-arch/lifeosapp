@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Event, Occurrence } from '@shared/types'
-import { layoutWeek } from '@shared/layout'
+import { layoutWeek, hourFromOffsetY } from '@shared/layout'
 import { formatCn, pad2 } from '@shared/dates'
 import { useToday } from '../../hooks/useToday'
 
@@ -14,9 +14,11 @@ interface Props {
   events: Event[]
   onCreateAt: (start?: string) => void
   onEdit: (ev: Event) => void
+  /** 今天页待办被拖入格子时回调（跨页面拖拽不保证生效，「转日程」按钮是等价路径） */
+  onDropTask?: (payload: { taskId: number; title: string; startAt: string; endAt: string }) => void
 }
 
-export function WeekView({ occurrences, anchor, events, onCreateAt, onEdit }: Props): JSX.Element {
+export function WeekView({ occurrences, anchor, events, onCreateAt, onEdit, onDropTask }: Props): JSX.Element {
   const { days, allDay, blocks } = useMemo(() => layoutWeek(occurrences, anchor), [occurrences, anchor])
   const today = useToday()
   const [dropDay, setDropDay] = useState<string | null>(null)
@@ -26,7 +28,7 @@ export function WeekView({ occurrences, anchor, events, onCreateAt, onEdit }: Pr
     if (ev) onEdit(ev)
   }
 
-  // 拖入格子：把待办落到该格对应的时间点（跨页面拖拽不保证生效，「转日程」按钮是等价路径）
+  // 拖入格子：把待办落到该格对应的时间点
   const onDrop = (date: string) => (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault()
     setDropDay(null)
@@ -38,15 +40,13 @@ export function WeekView({ occurrences, anchor, events, onCreateAt, onEdit }: Pr
     }
     if (!payload?.id) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const hour = Math.max(0, Math.min(23, Math.floor((e.clientY - rect.top) / HOUR_HEIGHT)))
-    window.dispatchEvent(new CustomEvent('lifeos:drop-task', {
-      detail: {
-        taskId: payload.id,
-        title: payload.title,
-        startAt: `${date} ${pad2(hour)}:00`,
-        endAt: `${date} ${pad2(hour)}:59`
-      }
-    }))
+    const hour = hourFromOffsetY(e.clientY - rect.top, HOUR_HEIGHT)
+    onDropTask?.({
+      taskId: payload.id,
+      title: payload.title,
+      startAt: `${date} ${pad2(hour)}:00`,
+      endAt: `${date} ${pad2(hour)}:59`
+    })
   }
 
   return (
