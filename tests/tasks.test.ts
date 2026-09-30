@@ -95,4 +95,15 @@ describe('待办数据层输入校验（隐患修复回归）', () => {
     expect(() => updateTask(db, t.id, { title: '   ' })).toThrow('待办标题不能为空')
     expect(getTask(db, t.id)!.title).toBe('原标题')
   })
+
+  it('可带来源标记创建（供模块联动使用）', () => {
+    const t = createTask(db, { title: '来自学习模块', date: '2026-09-30', source_module: 'learning', source_id: 7 })
+    expect(t).toMatchObject({ source_module: 'learning', source_id: 7 })
+  })
+
+  it('不带来源时两者都是 null', () => {
+    const t = createTask(db, { title: '普通待办', date: '2026-09-30' })
+    expect(t.source_module).toBeNull()
+    expect(t.source_id).toBeNull()
+  })
 })

@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite'
-import type { Priority, Task } from '@shared/types'
+import type { Priority, Task, TaskSource } from '@shared/types'
 import { assertDateStr, assertNonEmpty } from './validate'
 
 const PRIORITIES: readonly Priority[] = ['low', 'mid', 'high']
@@ -14,6 +14,8 @@ export interface TaskInput {
   title: string
   priority?: Priority
   date: string
+  source_module?: TaskSource | null
+  source_id?: number | null
 }
 
 export type TaskPatch = Partial<Pick<Task, 'title' | 'done' | 'priority'>>
@@ -35,8 +37,14 @@ export function createTask(db: DatabaseSync, input: TaskInput): Task {
   assertDateStr(input.date, '待办日期')
   if (input.priority !== undefined) assertPriority(input.priority)
   const info = db.prepare(
-    'INSERT INTO tasks (title, priority, date) VALUES (?, ?, ?)'
-  ).run(title, input.priority ?? 'mid', input.date)
+    'INSERT INTO tasks (title, priority, date, source_module, source_id) VALUES (?, ?, ?, ?, ?)'
+  ).run(
+    title,
+    input.priority ?? 'mid',
+    input.date,
+    input.source_module ?? null,
+    input.source_id ?? null
+  )
   return getTask(db, Number(info.lastInsertRowid))!
 }
 

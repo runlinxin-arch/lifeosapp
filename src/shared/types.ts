@@ -4,6 +4,13 @@ export type ModuleKey =
   | 'schedule' | 'learning' | 'dev' | 'inspiration'
   | 'fitness' | 'diet' | 'entertainment'
 
+/**
+ * 待办的来源：业务模块，或由日程事件自动汇入（'event'）。
+ * 与 LongTask 的 source_module 区分开——长期任务只会来自业务模块，
+ * 而待办多出一种"日程汇入"的来源。
+ */
+export type TaskSource = ModuleKey | 'event'
+
 export interface Task {
   id: number
   title: string
@@ -11,7 +18,7 @@ export interface Task {
   priority: Priority
   done_at: string | null
   date: string
-  source_module: ModuleKey | null
+  source_module: TaskSource | null
   source_id: number | null
   created_at: string
   updated_at: string
