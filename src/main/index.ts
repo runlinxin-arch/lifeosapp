@@ -1,6 +1,7 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, dialog, shell } from 'electron'
 import path from 'node:path'
-import { openDb, ensureDataDir } from './db'
+import { ensureDataDir } from './db'
+import { startupOpen } from './backup'
 import { registerIpc } from './ipc'
 
 function createWindow(): void {
@@ -32,9 +33,12 @@ function createWindow(): void {
 void app.whenReady().then(() => {
   const dataDir = app.getPath('userData')
   ensureDataDir(dataDir)
-  const db = openDb(path.join(dataDir, 'app.db'))
+  const { db, notice } = startupOpen(path.join(dataDir, 'app.db'), path.join(dataDir, 'backups'))
   registerIpc(db)
   createWindow()
+  if (notice) {
+    void dialog.showMessageBox({ type: 'warning', title: 'LifeOS 数据恢复', message: notice })
+  }
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
