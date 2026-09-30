@@ -39,11 +39,15 @@ export function updateTask(db: DatabaseSync, id: number, patch: TaskPatch): Task
   const title = patch.title ?? cur.title
   const priority = patch.priority ?? cur.priority
   const done = patch.done ?? cur.done
-  const doneAt = done ? (cur.done_at ?? new Date().toISOString()) : null
+  const flag = done ? 1 : 0
+  // done_at 统一走 SQLite 本地时间（与 created_at / updated_at 同格式），
+  // 已完成的保留首次完成时间，取消勾选则清空
   db.prepare(`
-    UPDATE tasks SET title=?, priority=?, done=?, done_at=?, updated_at=datetime('now','localtime')
+    UPDATE tasks SET title=?, priority=?, done=?,
+      done_at = CASE WHEN ? = 1 THEN COALESCE(done_at, datetime('now','localtime')) ELSE NULL END,
+      updated_at = datetime('now','localtime')
     WHERE id=?
-  `).run(title, priority, done ? 1 : 0, doneAt, id)
+  `).run(title, priority, flag, flag, id)
   return getTask(db, id)!
 }
 

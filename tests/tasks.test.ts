@@ -33,3 +33,35 @@ describe('tasks', () => {
     expect(listTasksByDate(db, '2026-09-30')).toHaveLength(0)
   })
 })
+
+describe('done_at 时间戳一致性（隐患修复回归）', () => {
+  it('使用本地时间格式，与表内其他时间戳一致', () => {
+    const t = createTask(db, { title: 'a', date: '2026-09-30' })
+    const u = updateTask(db, t.id, { done: true })
+    expect(u.done_at).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
+    expect(u.done_at).not.toContain('T')
+    expect(u.done_at).not.toContain('Z')
+  })
+
+  it('不会写入 UTC 时间（否则与 created_at 相差 8 小时）', () => {
+    const t = createTask(db, { title: 'a', date: '2026-09-30' })
+    const u = updateTask(db, t.id, { done: true })
+    const createdHour = Number(u.created_at.slice(11, 13))
+    const doneHour = Number(u.done_at!.slice(11, 13))
+    expect(Math.abs(doneHour - createdHour)).toBeLessThanOrEqual(1)
+    expect(u.done_at!.slice(0, 10)).toBe(u.created_at.slice(0, 10))
+  })
+
+  it('取消勾选会清空 done_at', () => {
+    const t = createTask(db, { title: 'a', date: '2026-09-30' })
+    expect(updateTask(db, t.id, { done: true }).done_at).toBeTruthy()
+    expect(updateTask(db, t.id, { done: false }).done_at).toBeNull()
+  })
+
+  it('重复更新保留首次完成时间', () => {
+    const t = createTask(db, { title: 'a', date: '2026-09-30' })
+    const first = updateTask(db, t.id, { done: true })
+    const second = updateTask(db, t.id, { title: '改名' })
+    expect(second.done_at).toBe(first.done_at)
+  })
+})
