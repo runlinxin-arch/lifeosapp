@@ -25,27 +25,33 @@
 ## 二、自动化结果
 
 ```
-npm test              41 文件 / 727 用例全绿      （M4 开工前：32 文件 / 528）
+npm test              43 文件 / 736 用例全绿      （M4 开工前：32 文件 / 528）
 npm run typecheck     0 错误
 npm run build         三入口通过
 npx electron-builder  release/LifeOS Setup 0.1.0.exe（109.69 MB）
 ```
 
-M4 期间新增 **199 个用例**（含移除愿望单时删去的 11 个），测试文件从 32 → 41。
+M4 期间新增 **208 个用例**（含移除愿望单时删去的 11 个、审计修复新增的 9 个），测试文件从 32 → 43。
 
-## 三、全量回归（M4 四阶段一次性跑通）
+## 三、全量回归（M4 五个阶段一次性跑通）
 
-脚本：`scripts/acceptance/m4-all.ps1`（每阶段清空相关表 + 重启应用进程后执行）
+脚本：`scripts/acceptance/m4-all.ps1`（**在 %TEMP% 的一次性数据目录里跑**，每阶段清空该目录后重启应用进程）
 
 ```
+PRE-FLIGHT: all stage scripts parse OK
+
 Stage              Pass Total
 ----              ---- -----
 M4-1 fitness         22    22
-M4-2 diet            20    20
+M4-2 diet            21    21
 M4-3 entertainment   20    20
 M4-4 today cards     12    12
+M4-midnight forms     7     7
 
-TOTAL: 74 / 74
+TOTAL: 82 / 82
+
+REAL DATA UNTOUCHED: OK (db=3403776|..., images=0)
+SCRATCH DB CREATED: %TEMP%\lifeos-e2e-xxxx\app.db
 ```
 
 截图：`docs/acceptance-shots/31~37`、`39~41`（健身 3 张、饮食 3 张、游戏娱乐 3 张、今日卡片 1 张）。
@@ -117,3 +123,24 @@ TOTAL: 74 / 74
 - **数据管理要注意的表**：M4 新增 8 张表（`workout_plans` / `workout_logs` / `body_metrics` / `meals` / `meal_plans` / `plays` / `wishlist` / `media`），导出/导入与备份范围需覆盖。
 - **M5 回写清单**：见上表 10 条偏差 + 第七节 6 项待确认。
 - **待接线的下一批界面**：设置页（外观 / 提醒 / 数据导出导入）是侧边栏唯一仍 disabled 的入口。
+
+## 九、隐患审计与修复（2026-10-09，code-review 复查）
+
+M4 交付后按「code-review-analysis」流程做了一轮隐患审计，逐个修复、每个问题都带测试与独立提交：
+
+| # | 严重度 | 隐患 | 修复 | 提交 | 验证 |
+|---|---|---|---|---|---|
+| 1 | **高** | 数据目录写死 `app.getPath('userData')`，而 `m3-all/m4-all` 与各 E2E 会清空 `%APPDATA%\LifeOS\app.db` 的表、删除 `images/` 全部图片、`Stop-Process` 用户正在运行的应用 —— 一旦开始真实使用，跑一次验收就毁数据 | 新增 `resolveDataDir` 纯函数支持 `LIFEOS_DATA_DIR`；runner 改在 `%TEMP%` 一次性目录跑并断言真实 `app.db`/`images` 指纹未变；会清库的 5 个脚本未设置该变量时**拒绝运行**（exit 2） | `5d88a08` | 单测 5/5；回归 74/74 且 `REAL DATA UNTOUCHED: OK` |
+| 2 | 中 | `PlayLog` / `MediaList` 用 `useState(() => todayStr())` 初始化日期，应用挂着过夜后第二天录入会默认落到**昨天**，数据记错日子且无提示 | 新增 `shouldFollowToday` 纯函数；两表单改 `useToday()` + touched 标记：跨零点自动跟随，用户手动选过则不改 | `2c2ed56` | 单测 3/3；新增跨零点 E2E 5/5 |
+| 3 | 中 | 验收脚本「触发保存 → 固定 sleep → 断言」会**偶发假失败**（同一份代码 M4-2 曾 3 项 FAIL、M4-1 曾 2 项 FAIL，单独复跑又全绿）；脚本崩溃时 TOTAL 仍按算术和显示（曾出现 `59/59` 看似全绿，实为 M4-3 崩溃后按 -1 计入） | 全部改为等待真实状态（库中条数/界面属性）；runner 增加 `node --check` 语法预检；有阶段未产出汇总时输出 `TOTAL: INVALID` | `1ef3611` | 连续两轮 80/80 |
+| 4 | 低 | 饮食的单项营养无上界（健身有 0–500 / 1–1440 之类边界），一次"多打几个 0"就能把当天合计彻底污染且不报错 | `MAX_ITEM_CALORIES=10000` / `MAX_ITEM_MACRO=1000`，入库前逐项校验并抛明确错误；编辑器提示同步标注 | `a59f4dc` | 数据层 +1 测试；饮食阶段 21/21 |
+| 5 | 低 | `TodayCards` 直接调 `todayStr()`，跨零点能否刷新取决于「父组件恰好用了 `useToday()`」这一隐式副作用；原跨零点 E2E 未覆盖 M4 卡片的日期语义 | 卡片改用 `useToday()` 显式订阅；跨零点 E2E 扩为两阶段，新增「跨零点前后卡片归属」断言 | `4ed6b96` | 跨零点 E2E 7/7；回归 82/82 |
+
+**已评估但判定为可接受 / 留待 M5 的项**：
+
+| 项 | 结论 |
+|---|---|
+| `ensureDataDir` 用 `${dir}\\backups` 拼路径而非 `path.join` | Windows 上现无实际影响（两种分隔符等价，且 `images.ts` 用 `path.join` 指向同一处）；列为可移植性待办，不单独修复 |
+| m3-1/2/3 等非破坏性脚本未加 `LIFEOS_DATA_DIR` 闸门 | 它们不删数据、只造数据，且已统一由 runner 在临时目录运行；如单独手工运行仍会写真实库，属已知限制 |
+| `wishlist` 表与数据保留 | 见第六节偏差 13；待 M5 决定是否用 v9 迁移删表 |
+| 「今天」页卡片在页内停留时不重新拉取数据（已在本页时点「今天」不重挂载） | M3-4 起即为此设计（页面挂载时按需加载）；跨模块回来时会重挂载刷新，实际使用无影响 |
