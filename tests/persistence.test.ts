@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { openDb, ensureDataDir } from '../src/main/db'
+import { openDb, ensureDataDir, LATEST_VERSION } from '../src/main/db'
 import { createTask, listTasksByDate, updateTask } from '../src/main/db/tasks'
 import { createLongTask, listRange } from '../src/main/db/longTasks'
 
@@ -108,7 +108,8 @@ describe('重开数据库后数据完整（M1 8.1 核心验收）', () => {
       const db = openDb(dbFile)
       if (i === 0) createTask(db, { title: '只写一次', date: '2026-09-30' })
       expect(listTasksByDate(db, '2026-09-30')).toHaveLength(1)
-      expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(2)
+      // 断言跟随最新迁移版本，而不是写死某个数字（否则每加一次迁移就要改测试）
+      expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(LATEST_VERSION)
       db.close()
     }
   })

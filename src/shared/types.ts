@@ -102,3 +102,49 @@ export interface Occurrence {
   note: string | null
   remindMinutes: number
 }
+
+// ---------- M3-1 自我学习 ----------
+
+export type LearnType = 'book' | 'course' | 'skill'
+export type LearnStatus = 'not_started' | 'learning' | 'done'
+
+export interface LearnItem {
+  id: number
+  title: string
+  type: LearnType
+  status: LearnStatus
+  total_units: number
+  done_units: number
+  start_date: string | null
+  end_date: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface LearnNote {
+  id: number
+  item_id: number
+  content: string
+  created_at: string
+  updated_at: string
+}
+
+export interface LearnSession {
+  id: number
+  item_id: number
+  date: string
+  minutes: number
+  created_at: string
+}
+
+export interface LearnItemInput {
+  title: string
+  type?: LearnType
+  status?: LearnStatus
+  totalUnits?: number
+  doneUnits?: number
+  startDate?: string | null
+  endDate?: string | null
+}
+
+export type LearnItemPatch = Partial<LearnItemInput>

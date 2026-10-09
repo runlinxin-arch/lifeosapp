@@ -75,6 +75,45 @@ export const MIGRATIONS: Migration[] = [
       `)
       addColumnIfMissing(db, 'long_tasks', 'done', 'INTEGER NOT NULL DEFAULT 0')
     }
+  },
+  {
+    // v3 —— M3-1：自我学习三张表
+    version: 3,
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS learn_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'book' CHECK (type IN ('book','course','skill')),
+          status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started','learning','done')),
+          total_units INTEGER NOT NULL DEFAULT 0,
+          done_units INTEGER NOT NULL DEFAULT 0,
+          start_date TEXT,
+          end_date TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_learn_items_status ON learn_items(status);
+
+        CREATE TABLE IF NOT EXISTS learn_notes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          item_id INTEGER NOT NULL REFERENCES learn_items(id) ON DELETE CASCADE,
+          content TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_learn_notes_item ON learn_notes(item_id);
+
+        CREATE TABLE IF NOT EXISTS learn_sessions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          item_id INTEGER NOT NULL REFERENCES learn_items(id) ON DELETE CASCADE,
+          date TEXT NOT NULL,
+          minutes INTEGER NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_learn_sessions_date ON learn_sessions(date);
+      `)
+    }
   }
 ]
 

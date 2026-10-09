@@ -81,3 +81,54 @@ describe('migrate', () => {
     db.close()
   })
 })
+
+describe('学习模块迁移 v3', () => {
+  it('新库含三张学习表', () => {
+    const db = openDb(dbFile)
+    expect(version(db)).toBe(3)
+    expect(columns(db, 'learn_items')).toEqual([
+      'id', 'title', 'type', 'status', 'total_units', 'done_units',
+      'start_date', 'end_date', 'created_at', 'updated_at'
+    ])
+    expect(columns(db, 'learn_notes')).toContain('item_id')
+    expect(columns(db, 'learn_sessions')).toContain('minutes')
+    db.close()
+  })
+
+  it('M2 老库能平滑升级到 v3 且数据保留', () => {
+    const raw = openDb(dbFile)
+    // 模拟只有 M2 结构的库：先删子表再删父表，最后把版本退回 v2
+    raw.exec('DROP TABLE learn_sessions')
+    raw.exec('DROP TABLE learn_notes')
+    raw.exec('DROP TABLE learn_items')
+    raw.exec('PRAGMA user_version = 2')
+    raw.prepare("INSERT INTO tasks (title, date) VALUES ('M2 老待办', '2026-10-09')").run()
+    raw.close()
+
+    const db = openDb(dbFile)
+    expect(version(db)).toBe(3)
+    expect(columns(db, 'learn_items')).toContain('total_units')
+    expect(db.prepare('SELECT COUNT(*) c FROM tasks').get()).toEqual({ c: 1 })
+    db.close()
+  })
+
+  it('删除学习项会级联删掉其笔记与学习记录', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO learn_items (title) VALUES ('雅思')").run()
+    const itemId = (db.prepare('SELECT id FROM learn_items').get() as { id: number }).id
+    db.prepare('INSERT INTO learn_notes (item_id, content) VALUES (?, ?)').run(itemId, '笔记')
+    db.prepare('INSERT INTO learn_sessions (item_id, date, minutes) VALUES (?, ?, ?)').run(itemId, '2026-10-09', 30)
+
+    db.prepare('DELETE FROM learn_items WHERE id = ?').run(itemId)
+    expect(db.prepare('SELECT COUNT(*) c FROM learn_notes').get()).toEqual({ c: 0 })
+    expect(db.prepare('SELECT COUNT(*) c FROM learn_sessions').get()).toEqual({ c: 0 })
+    db.close()
+  })
+
+  it('学习项类型与状态受 CHECK 约束', () => {
+    const db = openDb(dbFile)
+    expect(() => db.prepare("INSERT INTO learn_items (title, type) VALUES ('x', 'video')").run()).toThrow()
+    expect(() => db.prepare("INSERT INTO learn_items (title, status) VALUES ('x', 'paused')").run()).toThrow()
+    db.close()
+  })
+})
