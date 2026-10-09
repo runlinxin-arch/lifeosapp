@@ -8,7 +8,7 @@ import { useToday } from '../../hooks/useToday'
 import type { ProjectStats } from '../../lib/ipc'
 
 /** 状态灯配色：计划中琥珀 / 开发中绿 / 暂停与已完成灰 */
-const STATUS_META: Record<ProjectStatus, { label: string; color: string }> = {
+export const STATUS_META: Record<ProjectStatus, { label: string; color: string }> = {
   planned: { label: '计划中', color: '#f39c12' },
   in_progress: { label: '开发中', color: '#4ade80' },
   paused: { label: '暂停', color: '#8b8d98' },

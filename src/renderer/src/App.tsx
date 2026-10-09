@@ -14,7 +14,7 @@ export default function App(): JSX.Element {
   const content = useMemo(() => {
     switch (page) {
       case 'today':
-        return <TodayPage onJumpToSchedule={() => setPage('schedule')} />
+        return <TodayPage onJumpToSchedule={() => setPage('schedule')} onNavigate={setPage} />
       case 'schedule':
         return <SchedulePage />
       case 'learning':
