@@ -260,3 +260,52 @@ export interface TechNoteInput {
   projectId?: number | null
 }
 export type TechNotePatch = Partial<TechNoteInput>
+
+// ---------- M3-3 设计灵感 ----------
+
+export type CaptureKind = 'image' | 'text' | 'link'
+
+export interface InspirationBoard {
+  id: number
+  name: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Inspiration {
+  id: number
+  board_id: number | null
+  text: string
+  /** 图片文件名（仅文件名，不含目录）；由主进程生成，渲染进程不得提供 */
+  image_path: string | null
+  source_url: string | null
+  starred: boolean
+  tags: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface InspirationInput {
+  text?: string
+  boardId?: number | null
+  sourceUrl?: string | null
+  starred?: boolean
+  tags?: string[]
+  /** 仅供主进程在保存图片后内部使用 */
+  imagePath?: string | null
+}
+export type InspirationPatch = Partial<InspirationInput>
+
+export interface BoardInput { name: string }
+export type BoardPatch = Partial<BoardInput>
+
+/** 三合一捕获入参：图片以字节传输，渲染进程不给路径 */
+export interface CaptureInput {
+  kind: CaptureKind
+  text?: string
+  sourceUrl?: string
+  boardId?: number | null
+  tags?: string[]
+  imageBytes?: Uint8Array
+  imageMime?: string
+}

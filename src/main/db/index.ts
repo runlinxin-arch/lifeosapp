@@ -188,6 +188,34 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_dev_sessions_task ON dev_sessions(task_id);
       `)
     }
+  },
+  {
+    // v5 —— M3-3：设计灵感（画板 + 灵感条目）
+    version: 5,
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS inspiration_boards (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+
+        CREATE TABLE IF NOT EXISTS inspirations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          board_id INTEGER REFERENCES inspiration_boards(id) ON DELETE SET NULL,
+          text TEXT NOT NULL DEFAULT '',
+          image_path TEXT,
+          source_url TEXT,
+          starred INTEGER NOT NULL DEFAULT 0,
+          tags TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_inspirations_board ON inspirations(board_id);
+        CREATE INDEX IF NOT EXISTS idx_inspirations_starred ON inspirations(starred);
+      `)
+    }
   }
 ]
 

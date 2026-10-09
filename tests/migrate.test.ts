@@ -206,3 +206,55 @@ describe('开发模块迁移 v4', () => {
     db.close()
   })
 })
+
+describe('灵感模块迁移 v5', () => {
+  it('新库含两张灵感表', () => {
+    const db = openDb(dbFile)
+    expect(version(db)).toBe(LATEST_VERSION)
+    expect(columns(db, 'inspiration_boards')).toEqual(['id', 'name', 'created_at', 'updated_at'])
+    expect(columns(db, 'inspirations')).toContain('board_id')
+    expect(columns(db, 'inspirations')).toContain('image_path')
+    expect(columns(db, 'inspirations')).toContain('source_url')
+    expect(columns(db, 'inspirations')).toContain('starred')
+    expect(columns(db, 'inspirations')).toContain('tags')
+    db.close()
+  })
+
+  it('v4 老库能平滑升级到 v5 且开发数据保留', () => {
+    const raw = openDb(dbFile)
+    raw.exec('DROP TABLE inspirations')
+    raw.exec('DROP TABLE inspiration_boards')
+    raw.exec('PRAGMA user_version = 4')
+    raw.prepare("INSERT INTO projects (name) VALUES ('M3-2 老项目')").run()
+    raw.close()
+
+    const db = openDb(dbFile)
+    expect(version(db)).toBe(LATEST_VERSION)
+    expect(columns(db, 'inspirations')).toContain('starred')
+    expect(db.prepare('SELECT COUNT(*) c FROM projects').get()).toEqual({ c: 1 })
+    db.close()
+  })
+
+  it('删除画板时灵感保留，只解除归属', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO inspiration_boards (name) VALUES ('配色')").run()
+    const bid = (db.prepare('SELECT id FROM inspiration_boards').get() as { id: number }).id
+    db.prepare("INSERT INTO inspirations (board_id, text) VALUES (?, '一条灵感')").run(bid)
+
+    db.prepare('DELETE FROM inspiration_boards WHERE id = ?').run(bid)
+    const row = db.prepare('SELECT text, board_id FROM inspirations').get() as
+      { text: string; board_id: number | null }
+    expect(row.text).toBe('一条灵感')
+    expect(row.board_id).toBeNull()
+    db.close()
+  })
+
+  it('starred 默认 0、tags 默认空数组文本', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO inspirations (text) VALUES ('x')").run()
+    const row = db.prepare('SELECT starred, tags, image_path, source_url FROM inspirations').get() as
+      { starred: number; tags: string; image_path: string | null; source_url: string | null }
+    expect(row).toEqual({ starred: 0, tags: '[]', image_path: null, source_url: null })
+    db.close()
+  })
+})
