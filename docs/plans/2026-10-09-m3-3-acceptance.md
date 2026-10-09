@@ -111,7 +111,7 @@ npx electron-builder  release/LifeOS Setup 0.1.0.exe（109.67 MB）
 
 页面根节点保留了 `data-insp-filter` / `data-insp-items` / `data-insp-tags` 三个属性用于 E2E 观测，卡片保留了 `data-insp-card`。它们不影响功能，但属于测试专用标记，已在此备案。
 
-## 六、验收后的人工反馈与修复（2026-10-09）
+## 七、验收后的人工反馈与修复（2026-10-09）
 
 用户在人工验证拖拽手感与粘贴功能时提出两点体验问题，修复过程中又发现一处真实缺陷。
 
@@ -164,7 +164,7 @@ CSP: img-src 'self' data: lifeos-image:     ← 不含 blob:
 
 人工验证夹具：`scripts/dev/seed-manual-check.mjs`（看板拖拽数据）、`scripts/dev/set-clipboard-test-image.ps1`（往剪贴板放一张可识别的测试图）。
 
-## 七、明确不做的项（与计划的一处偏离）
+## 八、明确不做的项（与计划的一处偏离）
 
 **未实现「灵感标记为长期任务」。**
 
@@ -176,13 +176,13 @@ CSP: img-src 'self' data: lifeos-image:     ← 不含 blob:
 
 即：PRD 在能力清单与验收标准两处都点名学习项与开发项目，**从未要求灵感支持标记**。设计文档 §7.4 也未给 `inspirations` 定义日期区间。为它加 v6 迁移与两个日期字段属于**发明需求**，故不做。
 
-## 八、仍待人工确认（更新后）
+## 九、仍待人工确认
 
 1. ~~界面观感（截图 `20~22`）~~ —— **2026-10-09 用户查看后确认无问题**
 2. 真实粘贴板图片的粘贴体验（E2E 走的是文件选择路径；粘贴路径与选择文件共用同一处理函数）
 3. 大量图片时的瀑布流性能（当前只测了个位数卡片）
 
-## 九、与设计文档的偏差（M5 回写）
+## 十、与设计文档的偏差（M5 回写）
 
 1. 图片回显采用自定义协议 `lifeos-image://local/<filename>`，而非 `file://` —— 现有 CSP 为 `img-src 'self' data:`，`file://` 与自定义协议默认都会被拦截
 2. CSP 增加 `lifeos-image:` 到 `img-src`
