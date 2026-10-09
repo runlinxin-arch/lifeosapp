@@ -10,6 +10,11 @@ import { progressPercent, sumMinutes } from '@shared/learnStats'
 import { formatDuration } from '@shared/duration'
 import { activeProjects, pickTodayLearnItems } from '@shared/todayCards'
 import { projectWeekMinutes } from '@shared/devStats'
+import { planForDate, workoutCount } from '@shared/fitnessStats'
+import { MEAL_LABELS, MEAL_TYPES } from '@shared/dietContent'
+import { dayNutrition, mealByType, recordedCount } from '@shared/dietStats'
+import { useFitnessStore } from '../../stores/fitnessStore'
+import { useDietStore } from '../../stores/dietStore'
 import { STATUS_META as PROJECT_STATUS_META } from '../dev/ProjectList'
 
 function ModuleCard(props: {
@@ -17,6 +22,7 @@ function ModuleCard(props: {
   icon: string
   title: string
   accent?: string
+  accentLabel?: string
   onOpen?: () => void
   children: ReactNode
 }): JSX.Element {
@@ -24,9 +30,9 @@ function ModuleCard(props: {
     <div data-today-card={props.cardKey} className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3 mb-3">
       <div className="flex items-center gap-2 mb-2">
         <span className="text-sm font-bold">{props.icon} {props.title}</span>
-        {props.accent && (
+        {props.accent && props.accentLabel && (
           <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: `${props.accent}22`, color: props.accent }}>
-            {props.accent === '#4ade80' ? '学习' : '开发'}
+            {props.accentLabel}
           </span>
         )}
         {props.onOpen && (
@@ -57,8 +63,19 @@ export function TodayCards({ onNavigate }: { onNavigate?: (page: PageKey) => voi
   const devSessions = useDevStore((s) => s.sessions)
   const running = useDevTimerStore((s) => s.running)
 
+  // 健身 / 饮食卡片同样按需加载（M4-4 接线）
+  const fitPlans = useFitnessStore((s) => s.plans)
+  const fitLogs = useFitnessStore((s) => s.logs)
+  const fitSelected = useFitnessStore((s) => s.selectedPlanId)
+  const fitLoad = useFitnessStore((s) => s.load)
+
+  const meals = useDietStore((s) => s.meals)
+  const dietLoad = useDietStore((s) => s.load)
+
   useEffect(() => { void learnLoad() }, [learnLoad])
   useEffect(() => { void devLoad() }, [devLoad])
+  useEffect(() => { void fitLoad() }, [fitLoad])
+  useEffect(() => { void dietLoad() }, [dietLoad])
 
   const activeLongTasks = tasks.filter((t) => t.start_date <= today && t.end_date >= today)
 
@@ -71,6 +88,16 @@ export function TodayCards({ onNavigate }: { onNavigate?: (page: PageKey) => voi
   // ---- 开发卡片 ----
   const ongoing = activeProjects(projects)
   const weekOf = (pid: number): number => projectWeekMinutes(devSessions, allTasks, pid, days[0], days[6])
+
+  // ---- 健身卡片（M4-4）----
+  const activePlan = fitPlans.find((p) => p.id === fitSelected) ?? fitPlans[0] ?? null
+  const todayPlanned = activePlan ? planForDate(activePlan.schedule, today) : null
+  const weekWorkouts = workoutCount(fitLogs, days[0], days[6])
+  const loggedToday = fitLogs.some((l) => l.date === today)
+
+  // ---- 饮食卡片（M4-4）----
+  const mealsRecorded = recordedCount(meals, today)
+  const todayIntake = dayNutrition(meals, today)
 
   return (
     <div>
@@ -90,6 +117,7 @@ export function TodayCards({ onNavigate }: { onNavigate?: (page: PageKey) => voi
         icon="📖"
         title="自我学习"
         accent="#4ade80"
+        accentLabel="学习"
         onOpen={onNavigate ? () => onNavigate('learning') : undefined}
       >
         <div className="flex items-center gap-3 text-xs mb-2">
@@ -126,6 +154,7 @@ export function TodayCards({ onNavigate }: { onNavigate?: (page: PageKey) => voi
         icon="💻"
         title="开发"
         accent="#3498db"
+        accentLabel="开发"
         onOpen={onNavigate ? () => onNavigate('dev') : undefined}
       >
         {running && (
@@ -157,11 +186,75 @@ export function TodayCards({ onNavigate }: { onNavigate?: (page: PageKey) => voi
         })}
       </ModuleCard>
 
-      <ModuleCard cardKey="fitness" icon="🏋️" title="健身">
-        <div className="text-xs text-[var(--muted)]">健身模块将在 M4 接入</div>
+      <ModuleCard
+        cardKey="fitness"
+        icon="🏋️"
+        title="健身"
+        accent="#e74c3c"
+        accentLabel="健身"
+        onOpen={onNavigate ? () => onNavigate('fitness') : undefined}
+      >
+        <div className="flex items-center gap-3 text-xs mb-2">
+          <span className="text-[var(--muted)]">今天该练</span>
+          <span className="font-bold" style={{ color: '#e74c3c' }} data-fitness-planned={todayPlanned ?? ''}>
+            {todayPlanned ?? '未安排'}
+          </span>
+          <span className="text-[var(--muted)] ml-auto" data-fitness-week-count={weekWorkouts}>
+            本周 {weekWorkouts} 次
+          </span>
+        </div>
+
+        {!activePlan && (
+          <div className="text-xs text-[var(--muted)]">还没有训练计划，去「健身」建一个并编排一周安排</div>
+        )}
+        {activePlan && (
+          <div className="text-[11px] text-[var(--muted)]">
+            计划：{activePlan.name}
+            {loggedToday ? ' · 今天已打卡' : todayPlanned ? ' · 尚未打卡' : ''}
+          </div>
+        )}
       </ModuleCard>
-      <ModuleCard cardKey="diet" icon="🍚" title="饮食">
-        <div className="text-xs text-[var(--muted)]">饮食模块将在 M4 接入</div>
+
+      <ModuleCard
+        cardKey="diet"
+        icon="🍚"
+        title="饮食"
+        accent="#f39c12"
+        accentLabel="饮食"
+        onOpen={onNavigate ? () => onNavigate('diet') : undefined}
+      >
+        <div className="flex items-center gap-3 text-xs mb-2">
+          <span className="text-[var(--muted)]">今日摄入</span>
+          <span className="font-bold" style={{ color: '#f39c12' }} data-diet-calories={todayIntake.calories}>
+            {todayIntake.calories.toLocaleString()}
+          </span>
+          <span className="text-[10px] text-[var(--muted)]">kcal</span>
+          <span className="text-[var(--muted)] ml-auto" data-diet-recorded={mealsRecorded}>
+            已记录 {mealsRecorded}/4 餐
+          </span>
+        </div>
+
+        <div className="grid grid-cols-4 gap-1">
+          {MEAL_TYPES.map((t) => {
+            const logged = !!mealByType(meals, today, t)
+            return (
+              <div
+                key={t}
+                data-diet-meal={t}
+                data-meal-logged={logged ? 'true' : 'false'}
+                className="text-center text-[10px] py-1 rounded border"
+                style={{
+                  borderColor: logged ? '#f39c12' : 'var(--border)',
+                  borderStyle: logged ? 'solid' : 'dashed',
+                  color: logged ? '#f39c12' : 'var(--muted)'
+                }}
+              >
+                <div>{MEAL_LABELS[t]}</div>
+                <div>{logged ? '已记录' : '未记录'}</div>
+              </div>
+            )
+          })}
+        </div>
       </ModuleCard>
     </div>
   )
