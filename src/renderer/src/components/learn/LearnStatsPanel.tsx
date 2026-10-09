@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { dailyMinutes, streakDays, sumMinutes, weekMinutes } from '@shared/learnStats'
+import { formatDuration } from '@shared/duration'
 import { weekDays } from '@shared/layout'
 import { formatCn } from '@shared/dates'
 import { useLearnStore } from '../../stores/learnStore'
@@ -7,14 +8,6 @@ import { useToday } from '../../hooks/useToday'
 
 const BAR_AREA_H = 64
 const WEEK_LABEL = ['一', '二', '三', '四', '五', '六', '日']
-
-/** 分钟数 → 人类可读（90 → 1h 30m，45 → 45m） */
-export function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return m ? `${h}h ${m}m` : `${h}h`
-}
 
 export function LearnStatsPanel(): JSX.Element {
   const sessions = useLearnStore((s) => s.sessions)
