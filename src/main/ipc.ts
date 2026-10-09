@@ -6,6 +6,7 @@ import * as longTasks from './db/longTasks'
 import * as events from './db/events'
 import * as interop from './db/interop'
 import * as learn from './db/learn'
+import * as dev from './db/dev'
 import { getAllSettings, setSetting, type SettingsKey } from './db/settings'
 
 export function registerIpc(db: DatabaseSync): void {
@@ -59,4 +60,44 @@ export function registerIpc(db: DatabaseSync): void {
   ipcMain.handle('learn:createSession', (_e, itemId: number, date: string, minutes: number) =>
     learn.createSession(db, itemId, date, minutes))
   ipcMain.handle('learn:deleteSession', (_e, id: number) => learn.deleteSession(db, id))
+
+  // ---------- M3-2 开发 ----------
+  // Map 经 IPC 统一转成 [key, value][] 数组，渲染端再转回 Map（contextBridge 对 Map 支持不可靠）
+  ipcMain.handle('dev:listProjects', () => dev.listProjects(db))
+  ipcMain.handle('dev:createProject', (_e, input: dev.ProjectInput) => dev.createProject(db, input))
+  ipcMain.handle('dev:updateProject', (_e, id: number, patch: dev.ProjectPatch) =>
+    dev.updateProject(db, id, patch))
+  ipcMain.handle('dev:deleteProject', (_e, id: number) => dev.deleteProject(db, id))
+  ipcMain.handle('dev:listProjectStats', () => [...dev.listProjectStats(db).entries()])
+
+  ipcMain.handle('dev:listTasks', (_e, projectId: number) => dev.listDevTasks(db, projectId))
+  ipcMain.handle('dev:createTask', (_e, input: dev.DevTaskInput) => dev.createDevTask(db, input))
+  ipcMain.handle('dev:updateTask', (_e, id: number, patch: dev.DevTaskPatch) => dev.updateDevTask(db, id, patch))
+  ipcMain.handle('dev:deleteTask', (_e, id: number) => dev.deleteDevTask(db, id))
+  ipcMain.handle('dev:moveTask', (_e, id: number, column: dev.DevColumn, index: number) =>
+    dev.moveDevTask(db, id, column, index))
+
+  ipcMain.handle('dev:listBugs', (_e, projectId: number) => dev.listBugs(db, projectId))
+  ipcMain.handle('dev:createBug', (_e, input: dev.BugInput) => dev.createBug(db, input))
+  ipcMain.handle('dev:updateBug', (_e, id: number, patch: dev.BugPatch) => dev.updateBug(db, id, patch))
+  ipcMain.handle('dev:deleteBug', (_e, id: number) => dev.deleteBug(db, id))
+
+  ipcMain.handle('dev:listSnippets', () => dev.listSnippets(db))
+  ipcMain.handle('dev:createSnippet', (_e, input: dev.SnippetInput) => dev.createSnippet(db, input))
+  ipcMain.handle('dev:updateSnippet', (_e, id: number, patch: dev.SnippetPatch) =>
+    dev.updateSnippet(db, id, patch))
+  ipcMain.handle('dev:deleteSnippet', (_e, id: number) => dev.deleteSnippet(db, id))
+  ipcMain.handle('dev:searchSnippets', (_e, filter: dev.SnippetFilter) => dev.searchSnippets(db, filter))
+
+  ipcMain.handle('dev:listNotes', () => dev.listTechNotes(db))
+  ipcMain.handle('dev:createNote', (_e, input: dev.TechNoteInput) => dev.createTechNote(db, input))
+  ipcMain.handle('dev:updateNote', (_e, id: number, patch: dev.TechNotePatch) => dev.updateTechNote(db, id, patch))
+  ipcMain.handle('dev:deleteNote', (_e, id: number) => dev.deleteTechNote(db, id))
+
+  ipcMain.handle('dev:listSessions', (_e, taskId?: number) => dev.listDevSessions(db, taskId))
+  ipcMain.handle('dev:createSession', (_e, taskId: number, startedAt: string, endedAt: string, minutes: number) =>
+    dev.createDevSession(db, taskId, startedAt, endedAt, minutes))
+  ipcMain.handle('dev:deleteSession', (_e, id: number) => dev.deleteDevSession(db, id))
+  ipcMain.handle('dev:minutesByProject', () => [...dev.minutesByProject(db).entries()])
+  ipcMain.handle('dev:minutesByTask', (_e, projectId: number) => [...dev.minutesByTask(db, projectId).entries()])
 }

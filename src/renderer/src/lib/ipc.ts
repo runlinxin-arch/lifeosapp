@@ -1,9 +1,14 @@
 import type {
+  Bug, BugInput, BugPatch, DevColumn, DevSession, DevTask, DevTaskInput, DevTaskPatch,
   Event, EventInput, EventPatch, LearnItem, LearnItemInput, LearnItemPatch,
   LearnNote, LearnSession, LongTask, LongTaskPatch, MarkFromSourceInput,
-  ModuleKey, Occurrence, Priority, Task
+  ModuleKey, Occurrence, Priority, Project, ProjectInput, ProjectPatch, Snippet, SnippetInput, SnippetPatch,
+  Task, TechNote, TechNoteInput, TechNotePatch
 } from '@shared/types'
 import type { Settings, SettingsKey } from '@shared/settings'
+import type { SnippetFilter } from '@shared/snippetFilter'
+
+export interface ProjectStats { taskTotal: number; taskDone: number; openBugs: number; minutes: number }
 
 export interface TaskPatch { title?: string; done?: boolean; priority?: Priority }
 export interface TaskInput { title: string; priority?: Priority; date: string }
@@ -60,6 +65,43 @@ interface LifeosApi {
     listSessions(from?: string, to?: string): Promise<LearnSession[]>
     createSession(itemId: number, date: string, minutes: number): Promise<LearnSession>
     removeSession(id: number): Promise<void>
+  }
+  dev: {
+    listProjects(): Promise<Project[]>
+    createProject(input: ProjectInput): Promise<Project>
+    updateProject(id: number, patch: ProjectPatch): Promise<Project>
+    removeProject(id: number): Promise<void>
+    /** IPC 传回 [projectId, stats][] 数组，渲染端自行转 Map */
+    listProjectStats(): Promise<[number, ProjectStats][]>
+
+    listTasks(projectId: number): Promise<DevTask[]>
+    createTask(input: DevTaskInput): Promise<DevTask>
+    updateTask(id: number, patch: DevTaskPatch): Promise<DevTask>
+    removeTask(id: number): Promise<void>
+    /** 返回该项目最新看板 */
+    moveTask(id: number, column: DevColumn, index: number): Promise<DevTask[]>
+
+    listBugs(projectId: number): Promise<Bug[]>
+    createBug(input: BugInput): Promise<Bug>
+    updateBug(id: number, patch: BugPatch): Promise<Bug>
+    removeBug(id: number): Promise<void>
+
+    listSnippets(): Promise<Snippet[]>
+    createSnippet(input: SnippetInput): Promise<Snippet>
+    updateSnippet(id: number, patch: SnippetPatch): Promise<Snippet>
+    removeSnippet(id: number): Promise<void>
+    searchSnippets(filter: SnippetFilter): Promise<Snippet[]>
+
+    listNotes(): Promise<TechNote[]>
+    createNote(input: TechNoteInput): Promise<TechNote>
+    updateNote(id: number, patch: TechNotePatch): Promise<TechNote>
+    removeNote(id: number): Promise<void>
+
+    listSessions(taskId?: number): Promise<DevSession[]>
+    createSession(taskId: number, startedAt: string, endedAt: string, minutes: number): Promise<DevSession>
+    removeSession(id: number): Promise<void>
+    minutesByProject(): Promise<[number, number][]>
+    minutesByTask(projectId: number): Promise<[number, number][]>
   }
 }
 

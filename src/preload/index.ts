@@ -45,6 +45,43 @@ const api = {
     createSession: (itemId: number, date: string, minutes: number): Promise<unknown> =>
       ipcRenderer.invoke('learn:createSession', itemId, date, minutes),
     removeSession: (id: number): Promise<unknown> => ipcRenderer.invoke('learn:deleteSession', id)
+  },
+  dev: {
+    listProjects: (): Promise<unknown> => ipcRenderer.invoke('dev:listProjects'),
+    createProject: (input: unknown): Promise<unknown> => ipcRenderer.invoke('dev:createProject', input),
+    updateProject: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('dev:updateProject', id, patch),
+    removeProject: (id: number): Promise<unknown> => ipcRenderer.invoke('dev:deleteProject', id),
+    listProjectStats: (): Promise<unknown> => ipcRenderer.invoke('dev:listProjectStats'),
+
+    listTasks: (projectId: number): Promise<unknown> => ipcRenderer.invoke('dev:listTasks', projectId),
+    createTask: (input: unknown): Promise<unknown> => ipcRenderer.invoke('dev:createTask', input),
+    updateTask: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('dev:updateTask', id, patch),
+    removeTask: (id: number): Promise<unknown> => ipcRenderer.invoke('dev:deleteTask', id),
+    moveTask: (id: number, column: string, index: number): Promise<unknown> =>
+      ipcRenderer.invoke('dev:moveTask', id, column, index),
+
+    listBugs: (projectId: number): Promise<unknown> => ipcRenderer.invoke('dev:listBugs', projectId),
+    createBug: (input: unknown): Promise<unknown> => ipcRenderer.invoke('dev:createBug', input),
+    updateBug: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('dev:updateBug', id, patch),
+    removeBug: (id: number): Promise<unknown> => ipcRenderer.invoke('dev:deleteBug', id),
+
+    listSnippets: (): Promise<unknown> => ipcRenderer.invoke('dev:listSnippets'),
+    createSnippet: (input: unknown): Promise<unknown> => ipcRenderer.invoke('dev:createSnippet', input),
+    updateSnippet: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('dev:updateSnippet', id, patch),
+    removeSnippet: (id: number): Promise<unknown> => ipcRenderer.invoke('dev:deleteSnippet', id),
+    searchSnippets: (filter: unknown): Promise<unknown> => ipcRenderer.invoke('dev:searchSnippets', filter),
+
+    listNotes: (): Promise<unknown> => ipcRenderer.invoke('dev:listNotes'),
+    createNote: (input: unknown): Promise<unknown> => ipcRenderer.invoke('dev:createNote', input),
+    updateNote: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('dev:updateNote', id, patch),
+    removeNote: (id: number): Promise<unknown> => ipcRenderer.invoke('dev:deleteNote', id),
+
+    listSessions: (taskId?: number): Promise<unknown> => ipcRenderer.invoke('dev:listSessions', taskId),
+    createSession: (taskId: number, startedAt: string, endedAt: string, minutes: number): Promise<unknown> =>
+      ipcRenderer.invoke('dev:createSession', taskId, startedAt, endedAt, minutes),
+    removeSession: (id: number): Promise<unknown> => ipcRenderer.invoke('dev:deleteSession', id),
+    minutesByProject: (): Promise<unknown> => ipcRenderer.invoke('dev:minutesByProject'),
+    minutesByTask: (projectId: number): Promise<unknown> => ipcRenderer.invoke('dev:minutesByTask', projectId)
   }
 }
 
