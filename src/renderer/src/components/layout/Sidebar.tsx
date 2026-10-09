@@ -20,7 +20,7 @@ const GROUPS: { label: string; items: { key: PageKey; icon: string; label: strin
     items: [
       { key: 'fitness', icon: '🏋️', label: '健身' },
       { key: 'diet', icon: '🍚', label: '饮食' },
-      { key: 'entertainment', icon: '🎮', label: '游戏娱乐', disabled: true }
+      { key: 'entertainment', icon: '🎮', label: '游戏娱乐' }
     ]
   },
   { label: '', items: [{ key: 'settings', icon: '⚙️', label: '设置和数据', disabled: true }] }
