@@ -98,6 +98,22 @@ const api = {
     removeBoard: (id: number): Promise<unknown> => ipcRenderer.invoke('insp:deleteBoard', id),
     boardStats: (): Promise<unknown> => ipcRenderer.invoke('insp:boardStats'),
     readClipboardImage: (): Promise<unknown> => ipcRenderer.invoke('insp:readClipboardImage')
+  },
+  fit: {
+    listPlans: (): Promise<unknown> => ipcRenderer.invoke('fit:listPlans'),
+    createPlan: (input: unknown): Promise<unknown> => ipcRenderer.invoke('fit:createPlan', input),
+    updatePlan: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('fit:updatePlan', id, patch),
+    removePlan: (id: number): Promise<unknown> => ipcRenderer.invoke('fit:deletePlan', id),
+
+    listLogs: (from?: string, to?: string): Promise<unknown> => ipcRenderer.invoke('fit:listLogs', from, to),
+    createLog: (input: unknown): Promise<unknown> => ipcRenderer.invoke('fit:createLog', input),
+    updateLog: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('fit:updateLog', id, patch),
+    removeLog: (id: number): Promise<unknown> => ipcRenderer.invoke('fit:deleteLog', id),
+
+    listMetrics: (from?: string, to?: string): Promise<unknown> => ipcRenderer.invoke('fit:listMetrics', from, to),
+    upsertMetric: (input: unknown): Promise<unknown> => ipcRenderer.invoke('fit:upsertMetric', input),
+    removeMetric: (id: number): Promise<unknown> => ipcRenderer.invoke('fit:deleteMetric', id),
+    latestMetric: (): Promise<unknown> => ipcRenderer.invoke('fit:latestMetric')
   }
 }
 

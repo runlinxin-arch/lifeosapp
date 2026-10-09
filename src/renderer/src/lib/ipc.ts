@@ -1,11 +1,12 @@
 import type {
-  BoardInput, BoardPatch, Bug, BugInput, BugPatch, CaptureInput, DevColumn, DevSession, DevTask,
-  DevTaskInput, DevTaskPatch,
+  BoardInput, BoardPatch, BodyMetric, BodyMetricInput, Bug, BugInput, BugPatch, CaptureInput,
+  DevColumn, DevSession, DevTask, DevTaskInput, DevTaskPatch,
   Event, EventInput, EventPatch, Inspiration, InspirationBoard, InspirationInput, InspirationPatch,
   LearnItem, LearnItemInput, LearnItemPatch,
   LearnNote, LearnSession, LongTask, LongTaskPatch, MarkFromSourceInput,
   ModuleKey, Occurrence, Priority, Project, ProjectInput, ProjectPatch, Snippet, SnippetInput, SnippetPatch,
-  Task, TechNote, TechNoteInput, TechNotePatch
+  Task, TechNote, TechNoteInput, TechNotePatch,
+  WorkoutLog, WorkoutLogInput, WorkoutLogPatch, WorkoutPlan, WorkoutPlanInput, WorkoutPlanPatch
 } from '@shared/types'
 import type { Settings, SettingsKey } from '@shared/settings'
 import type { SnippetFilter } from '@shared/snippetFilter'
@@ -124,6 +125,22 @@ interface LifeosApi {
     boardStats(): Promise<[number, BoardStat][]>
     /** 主进程读剪贴板图片；没有图片返回 null */
     readClipboardImage(): Promise<{ bytes: Uint8Array; mime: string } | null>
+  }
+  fit: {
+    listPlans(): Promise<WorkoutPlan[]>
+    createPlan(input: WorkoutPlanInput): Promise<WorkoutPlan>
+    updatePlan(id: number, patch: WorkoutPlanPatch): Promise<WorkoutPlan>
+    removePlan(id: number): Promise<void>
+
+    listLogs(from?: string, to?: string): Promise<WorkoutLog[]>
+    createLog(input: WorkoutLogInput): Promise<WorkoutLog>
+    updateLog(id: number, patch: WorkoutLogPatch): Promise<WorkoutLog>
+    removeLog(id: number): Promise<void>
+
+    listMetrics(from?: string, to?: string): Promise<BodyMetric[]>
+    upsertMetric(input: BodyMetricInput): Promise<BodyMetric>
+    removeMetric(id: number): Promise<void>
+    latestMetric(): Promise<BodyMetric | null>
   }
 }
 

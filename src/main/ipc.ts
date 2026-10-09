@@ -8,6 +8,7 @@ import * as interop from './db/interop'
 import * as learn from './db/learn'
 import * as dev from './db/dev'
 import * as insp from './db/inspiration'
+import * as fit from './db/fitness'
 import { capture } from './capture'
 import { readClipboardImage } from './clipboardImage'
 import { deleteImageFile, saveImageFile } from './images'
@@ -128,4 +129,20 @@ export function registerIpc(db: DatabaseSync): void {
   ipcMain.handle('insp:boardStats', () => [...insp.boardStats(db).entries()])
   // 渲染进程读剪贴板需要授权且依赖焦点；改由主进程读，稳定且无需授权
   ipcMain.handle('insp:readClipboardImage', () => readClipboardImage(clipboard))
+
+  // ---------- M4-1 健身 ----------
+  ipcMain.handle('fit:listPlans', () => fit.listPlans(db))
+  ipcMain.handle('fit:createPlan', (_e, input: fit.WorkoutPlanInput) => fit.createPlan(db, input))
+  ipcMain.handle('fit:updatePlan', (_e, id: number, patch: fit.WorkoutPlanPatch) => fit.updatePlan(db, id, patch))
+  ipcMain.handle('fit:deletePlan', (_e, id: number) => fit.deletePlan(db, id))
+
+  ipcMain.handle('fit:listLogs', (_e, from?: string, to?: string) => fit.listLogs(db, from, to))
+  ipcMain.handle('fit:createLog', (_e, input: fit.WorkoutLogInput) => fit.createLog(db, input))
+  ipcMain.handle('fit:updateLog', (_e, id: number, patch: fit.WorkoutLogPatch) => fit.updateLog(db, id, patch))
+  ipcMain.handle('fit:deleteLog', (_e, id: number) => fit.deleteLog(db, id))
+
+  ipcMain.handle('fit:listMetrics', (_e, from?: string, to?: string) => fit.listMetrics(db, from, to))
+  ipcMain.handle('fit:upsertMetric', (_e, input: fit.BodyMetricInput) => fit.upsertMetric(db, input))
+  ipcMain.handle('fit:deleteMetric', (_e, id: number) => fit.deleteMetric(db, id))
+  ipcMain.handle('fit:latestMetric', () => fit.latestBodyMetric(db))
 }
