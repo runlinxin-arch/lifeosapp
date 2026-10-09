@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Media, MediaStatus, MediaType } from '@shared/types'
-import { mediaGroups } from '@shared/entStats'
+import { mediaGroups, mediaInScope, type MediaScope } from '@shared/entStats'
 import {
   MEDIA_STATUSES, MEDIA_STATUS_LABELS, MEDIA_TYPES, MEDIA_TYPE_LABELS
 } from '@shared/entContent'
@@ -11,18 +11,26 @@ import { StarRating } from './StarRating'
 const PURPLE = '#a06ee1'
 const inputCls = 'bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1 text-xs outline-none focus:border-[var(--accent)]'
 
-/** 影视书：类型 / 状态 / 五星评分 / 短评，按状态分组展示 */
-export function MediaList({ items }: { items: Media[] }): JSX.Element {
+/** 该栏允许的类型：影视 = 电影/剧集，书籍 = 书籍 */
+const typesFor = (scope: MediaScope): MediaType[] => (scope === 'book' ? ['book'] : ['movie', 'series'])
+
+/** 影视 / 书籍：类型 / 状态 / 五星评分 / 短评，按状态分组展示 */
+export function MediaList({ items, scope }: { items: Media[]; scope: MediaScope }): JSX.Element {
   const addMedia = useEntertainmentStore((s) => s.addMedia)
   const updateMedia = useEntertainmentStore((s) => s.updateMedia)
   const removeMedia = useEntertainmentStore((s) => s.removeMedia)
 
+  const allowed = typesFor(scope)
   const [title, setTitle] = useState('')
-  const [type, setType] = useState<MediaType>('movie')
+  const [type, setType] = useState<MediaType>(allowed[0])
   const [status, setStatus] = useState<MediaStatus>('planned')
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState('')
   const [date, setDate] = useState(() => todayStr())
+
+  const scoped = mediaInScope(items, scope)
+  const groups = mediaGroups(scoped)
+  const scopeLabel = scope === 'book' ? '书籍' : '影视'
 
   const submit = async (): Promise<void> => {
     if (!title.trim()) return
@@ -34,12 +42,15 @@ export function MediaList({ items }: { items: Media[] }): JSX.Element {
     }
   }
 
-  const groups = mediaGroups(items)
-
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" data-media-scope={scope}>
       <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3">
-        <div className="text-sm font-bold mb-2">🎬 添加影视书</div>
+        <div className="text-sm font-bold mb-2">
+          {scope === 'book' ? '📚 添加书籍' : '🎬 添加影视'}
+          <span className="ml-2 text-[10px] text-[var(--muted)]">
+            {scope === 'book' ? '与影视分开记录' : '电影 / 剧集'}
+          </span>
+        </div>
         <div className="flex items-center gap-2 flex-wrap mb-2">
           <input
             data-media-title
@@ -50,7 +61,9 @@ export function MediaList({ items }: { items: Media[] }): JSX.Element {
             className={`${inputCls} w-44`}
           />
           <select data-media-type value={type} onChange={(e) => setType(e.target.value as MediaType)} className={inputCls}>
-            {MEDIA_TYPES.map((t) => <option key={t} value={t}>{MEDIA_TYPE_LABELS[t]}</option>)}
+            {MEDIA_TYPES.filter((t) => allowed.includes(t)).map((t) => (
+              <option key={t} value={t}>{MEDIA_TYPE_LABELS[t]}</option>
+            ))}
           </select>
           <select data-media-status value={status} onChange={(e) => setStatus(e.target.value as MediaStatus)} className={inputCls}>
             {MEDIA_STATUSES.map((s) => <option key={s} value={s}>{MEDIA_STATUS_LABELS[s]}</option>)}
@@ -81,6 +94,10 @@ export function MediaList({ items }: { items: Media[] }): JSX.Element {
         </div>
       </div>
 
+      <div className="text-[10px] text-[var(--muted)] px-1" data-media-total={scoped.length}>
+        {scopeLabel}共 {scoped.length} 条
+      </div>
+
       {MEDIA_STATUSES.map((s) => (
         <div key={s} className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3" data-media-group={s}>
           <div className="flex items-center gap-2 mb-2">
@@ -99,6 +116,7 @@ export function MediaList({ items }: { items: Media[] }): JSX.Element {
                   key={m.id}
                   data-media-row={m.id}
                   data-media-rating={m.rating}
+                  data-media-type-row={m.type}
                   className="flex items-center gap-2 text-[11px] py-1 border-b border-[var(--border)] last:border-b-0"
                 >
                   <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg)] text-[var(--muted)]">

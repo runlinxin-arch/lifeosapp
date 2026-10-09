@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { gameSummaries, totalMinutes, recentPlays, sortWishlist, mediaGroups, mediaByType } from '../src/shared/entStats'
+import {
+  gameSummaries, totalMinutes, recentPlays, sortWishlist, mediaGroups, mediaByType,
+  playRangeBounds, filterPlays, mediaInScope
+} from '../src/shared/entStats'
 import type { Play, WishItem, Media, MediaType, MediaStatus, Priority } from '../src/shared/types'
 
 const play = (id: number, game: string, date: string, minutes: number): Play =>
@@ -103,5 +106,78 @@ describe('mediaGroups / mediaByType', () => {
   it('空输入也返回完整键', () => {
     expect(Object.keys(mediaGroups([])).sort()).toEqual(['doing', 'done', 'planned'])
     expect(Object.keys(mediaByType([])).sort()).toEqual(['book', 'movie', 'series'])
+  })
+})
+
+describe('playRangeBounds', () => {
+  it('本周 = 周一到周日', () => {
+    expect(playRangeBounds('week', '2026-10-09')).toEqual({ from: '2026-10-05', to: '2026-10-11' })
+    expect(playRangeBounds('week', '2026-10-05')).toEqual({ from: '2026-10-05', to: '2026-10-11' })
+    expect(playRangeBounds('week', '2026-10-11')).toEqual({ from: '2026-10-05', to: '2026-10-11' })
+  })
+  it('本月 = 1 号到月末（含 2 月与闰年）', () => {
+    expect(playRangeBounds('month', '2026-10-09')).toEqual({ from: '2026-10-01', to: '2026-10-31' })
+    expect(playRangeBounds('month', '2026-02-15')).toEqual({ from: '2026-02-01', to: '2026-02-28' })
+    expect(playRangeBounds('month', '2024-02-15')).toEqual({ from: '2024-02-01', to: '2024-02-29' })
+    expect(playRangeBounds('month', '2026-04-30')).toEqual({ from: '2026-04-01', to: '2026-04-30' })
+  })
+  it('全部返回 null', () => {
+    expect(playRangeBounds('all', '2026-10-09')).toBeNull()
+  })
+})
+
+describe('filterPlays', () => {
+  const rows = [
+    play(1, '老头环', '2026-10-09', 90),  // 本周 / 本月
+    play(2, '老头环', '2026-10-02', 30),  // 本月（上周）
+    play(3, '丝之歌', '2026-09-20', 300), // 上月
+    play(4, '老头环', '2026-09-01', 60)   // 上月
+  ]
+  const today = '2026-10-09'
+  it('按周过滤', () => {
+    expect(filterPlays(rows, { range: 'week', today }).map((p) => p.id)).toEqual([1])
+  })
+  it('按月过滤', () => {
+    expect(filterPlays(rows, { range: 'month', today }).map((p) => p.id)).toEqual([1, 2])
+  })
+  it('全部不过滤', () => {
+    expect(filterPlays(rows, { range: 'all', today })).toHaveLength(4)
+    expect(filterPlays(rows, { today })).toHaveLength(4)
+  })
+  it('按游戏名筛选（去空白后精确匹配）', () => {
+    expect(filterPlays(rows, { game: '老头环', range: 'all', today }).map((p) => p.id)).toEqual([1, 2, 4])
+    expect(filterPlays(rows, { game: ' 丝之歌 ', range: 'all', today }).map((p) => p.id)).toEqual([3])
+  })
+  it('区间与游戏筛选可叠加', () => {
+    expect(filterPlays(rows, { game: '老头环', range: 'month', today }).map((p) => p.id)).toEqual([1, 2])
+    expect(filterPlays(rows, { game: '丝之歌', range: 'week', today })).toEqual([])
+  })
+  it('空游戏名视为不筛', () => {
+    expect(filterPlays(rows, { game: '', range: 'all', today })).toHaveLength(4)
+    expect(filterPlays(rows, { game: null, range: 'all', today })).toHaveLength(4)
+    expect(filterPlays(rows, { game: '  ', range: 'all', today })).toHaveLength(4)
+  })
+  it('不修改入参', () => {
+    const copy = [...rows]
+    filterPlays(rows, { game: '老头环', range: 'week', today })
+    expect(rows).toEqual(copy)
+  })
+})
+
+describe('mediaInScope', () => {
+  const rows = [
+    media(1, '沙丘', 'movie', 'done'),
+    media(2, '怪奇物语', 'series', 'doing'),
+    media(3, '三体', 'book', 'doing')
+  ]
+  it('影视 = 电影 + 剧集', () => {
+    expect(mediaInScope(rows, 'screen').map((m) => m.title)).toEqual(['沙丘', '怪奇物语'])
+  })
+  it('书籍 = 书籍', () => {
+    expect(mediaInScope(rows, 'book').map((m) => m.title)).toEqual(['三体'])
+  })
+  it('空输入返回空数组', () => {
+    expect(mediaInScope([], 'screen')).toEqual([])
+    expect(mediaInScope([], 'book')).toEqual([])
   })
 })

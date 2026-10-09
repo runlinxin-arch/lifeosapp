@@ -9,8 +9,16 @@ const PURPLE = '#a06ee1'
 const TABS: { key: EntTab; label: string }[] = [
   { key: 'plays', label: '游玩记录' },
   { key: 'wishlist', label: '愿望单' },
-  { key: 'media', label: '影视书' }
+  { key: 'screen', label: '影视' },
+  { key: 'book', label: '书籍' }
 ]
+
+const HINTS: Record<EntTab, string> = {
+  plays: '可切本周 / 本月 / 全部，点聚合行可按游戏筛选',
+  wishlist: '高优先级排在最前',
+  screen: '电影与剧集，按状态分组，可打星与写短评',
+  book: '书籍与影视分开记录'
+}
 
 export function EntertainmentPage(): JSX.Element {
   const { plays, wishlist, media, tab, error, clearError, load, setTab } = useEntertainmentStore()
@@ -39,9 +47,7 @@ export function EntertainmentPage(): JSX.Element {
           ))}
         </div>
 
-        <span className="text-[10px] text-[var(--muted)] ml-auto">
-          {tab === 'plays' ? '同一天可记多条，按游戏自动汇总' : tab === 'wishlist' ? '高优先级排在最前' : '按状态分组，可打星与写短评'}
-        </span>
+        <span className="text-[10px] text-[var(--muted)] ml-auto">{HINTS[tab]}</span>
       </div>
 
       {error && (
@@ -54,7 +60,8 @@ export function EntertainmentPage(): JSX.Element {
       <div className="flex-1 px-4 pb-4 overflow-auto">
         {tab === 'plays' && <PlayLog plays={plays} />}
         {tab === 'wishlist' && <Wishlist items={wishlist} />}
-        {tab === 'media' && <MediaList items={media} />}
+        {tab === 'screen' && <MediaList items={media} scope="screen" />}
+        {tab === 'book' && <MediaList items={media} scope="book" />}
       </div>
     </div>
   )

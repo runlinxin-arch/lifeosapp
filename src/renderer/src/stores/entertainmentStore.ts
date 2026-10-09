@@ -4,7 +4,8 @@ import { api } from '../lib/ipc'
 import { LatestGuard } from '../lib/latest'
 import { formatIpcError } from '../lib/errors'
 
-export type EntTab = 'plays' | 'wishlist' | 'media'
+/** 页签：游玩记录 / 愿望单 / 影视 / 书籍（影视与书籍分开，用户要求） */
+export type EntTab = 'plays' | 'wishlist' | 'screen' | 'book'
 
 interface EntState {
   plays: Play[]
