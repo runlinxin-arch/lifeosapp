@@ -4,11 +4,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { assessImage, buildImageName, isAllowedImageName } from '@shared/imageName'
+import { resolveDataDir } from './paths'
 
 export const IMAGE_SCHEME = 'lifeos-image'
 
 export function imagesDir(): string {
-  return path.join(app.getPath('userData'), 'images')
+  // 与主进程数据目录保持一致：同一份 LIFEOS_DATA_DIR 覆盖规则
+  return path.join(resolveDataDir(process.env, app.getPath('userData')), 'images')
 }
 
 /** 必须在 app ready 之前调用，否则 <img src="lifeos-image://..."> 会被拦截 */

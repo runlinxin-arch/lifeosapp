@@ -1,5 +1,13 @@
-// M3-4「今天」页卡片接线 端到端验收
-// 运行前置：应用以 --remote-debugging-port=9222 启动
+﻿// M3-4「今天」页卡片接线 端到端验收
+// 运行前置：应用以 --remote-debugging-port=9222 启动，且数据目录由 LIFEOS_DATA_DIR 指向临时目录
+// 安全闸门：本脚本会清理数据。必须由验收 runner 指定临时数据目录（LIFEOS_DATA_DIR），
+// 否则可能清掉真实用户数据（%APPDATA%\LifeOS\app.db）。见 scripts/acceptance/m4-all.ps1
+if (!process.env.LIFEOS_DATA_DIR) {
+  console.error('拒绝运行：未设置 LIFEOS_DATA_DIR。');
+  console.error('请用 scripts/acceptance/m4-all.ps1 运行，或先设置 LIFEOS_DATA_DIR=<临时目录> 并以该目录启动应用。');
+  process.exit(2);
+}
+
 const targets = await (await fetch('http://127.0.0.1:9222/json')).json()
 const page = targets.find((t) => t.type === 'page')
 if (!page) { console.error('无渲染页面'); process.exit(1) }

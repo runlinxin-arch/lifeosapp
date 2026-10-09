@@ -5,6 +5,7 @@ import { startupOpen } from './backup'
 import { registerIpc } from './ipc'
 import { startReminders } from './reminders'
 import { registerImageProtocol, registerImageScheme } from './images'
+import { resolveDataDir, DATA_DIR_ENV } from './paths'
 
 // 必须在 app ready 之前注册，否则 lifeos-image:// 会被当成普通 URL 拦掉
 registerImageScheme()
@@ -38,7 +39,10 @@ function createWindow(): BrowserWindow {
 }
 
 void app.whenReady().then(() => {
-  const dataDir = app.getPath('userData')
+  // 默认用 Electron 的 userData；验收/E2E 可用 LIFEOS_DATA_DIR 指到临时目录，
+  // 这样清库与造数据都不会碰真实数据（见 scripts/acceptance/*-all.ps1）
+  const dataDir = resolveDataDir(process.env, app.getPath('userData'))
+  if (process.env[DATA_DIR_ENV]) console.log(`[lifeos] dataDir 被 ${DATA_DIR_ENV} 覆盖为 ${dataDir}`)
   ensureDataDir(dataDir)
   const { db, notice } = startupOpen(path.join(dataDir, 'app.db'), path.join(dataDir, 'backups'))
   registerIpc(db)

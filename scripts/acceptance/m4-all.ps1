@@ -1,16 +1,29 @@
-# M4 full regression: run every M4 stage E2E against a clean DB and a fresh app process.
+# M4 full regression: run every M4 stage E2E against a SCRATCH data dir and a fresh app process.
+# The app data dir is redirected through LIFEOS_DATA_DIR, so the real %APPDATA%\LifeOS is never touched.
 # ASCII-only on purpose: Windows PowerShell reads BOM-less .ps1 as ANSI, which mangles non-ASCII.
 $ErrorActionPreference = 'Continue'
 Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 
-$db = Join-Path $env:APPDATA 'LifeOS\app.db'
 $root = $PWD.Path
+$realDb = Join-Path $env:APPDATA 'LifeOS\app.db'
+$realImages = Join-Path $env:APPDATA 'LifeOS\images'
 
-$cleanSql = "DELETE FROM workout_logs; DELETE FROM workout_plans; DELETE FROM body_metrics;" +
-            "DELETE FROM meals; DELETE FROM meal_plans;" +
-            "DELETE FROM plays; DELETE FROM wishlist; DELETE FROM media;"
-# NOTE: wishlist table is legacy (feature removed on 2026-10-09 by user request).
-# The table and its v8 migration are kept untouched; this DELETE only clears E2E leftovers.
+function Get-DbFingerprint([string]$p) {
+  if (Test-Path $p) {
+    $i = Get-Item $p
+    return "$($i.Length)|$($i.LastWriteTimeUtc.ToString('o'))"
+  }
+  return 'absent'
+}
+$realDbBefore = Get-DbFingerprint $realDb
+$realImgBefore = if (Test-Path $realImages) { (Get-ChildItem $realImages -File -ErrorAction SilentlyContinue | Measure-Object).Count } else { 'absent' }
+
+$scratch = Join-Path $env:TEMP ('lifeos-e2e-' + ([guid]::NewGuid().ToString('N').Substring(0, 8)))
+New-Item -ItemType Directory -Force -Path $scratch | Out-Null
+$env:LIFEOS_DATA_DIR = $scratch
+Write-Output "SCRATCH DATA DIR (app data goes here): $scratch"
+Write-Output "REAL DB (must stay untouched)        : $realDb"
+Write-Output ""
 
 $stages = @(
   @{ name = 'M4-1 fitness';       script = 'scripts\acceptance\m4-1-e2e.mjs' },
@@ -29,7 +42,8 @@ foreach ($s in $stages) {
   Get-Process -Name electron,LifeOS -ErrorAction SilentlyContinue | Stop-Process -Force
   Start-Sleep -Seconds 2
 
-  & node -e "const{DatabaseSync}=require('node:sqlite');const db=new DatabaseSync(process.argv[1]);db.exec(process.argv[2]);db.close()" $db $cleanSql 2>&1 | Out-Null
+  # Fresh scratch data for every stage (no cleanSql needed: the whole dir is wiped)
+  Get-ChildItem -LiteralPath $scratch -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
   Start-Process -FilePath 'node_modules\electron\dist\electron.exe' -ArgumentList '.', '--remote-debugging-port=9222' `
     -RedirectStandardOutput "$root\.reg-out.log" -RedirectStandardError "$root\.reg-err.log" -WorkingDirectory $root | Out-Null
@@ -37,6 +51,7 @@ foreach ($s in $stages) {
 
   $out = & node $s.script 2>&1
   $out | Select-String -Pattern 'PASS|FAIL' | ForEach-Object { "  $_" }
+  $out | Select-String -Pattern '拒绝运行' | ForEach-Object { "  $_" }
   $hit = ($out | Select-String -Pattern '=====\s*(\d+)/(\d+)').Matches
   if ($hit.Count -gt 0) {
     $summary += [pscustomobject]@{ Stage = $s.name; Pass = [int]$hit[0].Groups[1].Value; Total = [int]$hit[0].Groups[2].Value }
@@ -56,3 +71,19 @@ $summary | Format-Table -AutoSize
 $tp = ($summary | Measure-Object -Property Pass -Sum).Sum
 $tt = ($summary | Measure-Object -Property Total -Sum).Sum
 Write-Output "TOTAL: $tp / $tt"
+Write-Output ""
+
+$realDbAfter = Get-DbFingerprint $realDb
+$realImgAfter = if (Test-Path $realImages) { (Get-ChildItem $realImages -File -ErrorAction SilentlyContinue | Measure-Object).Count } else { 'absent' }
+$scratchDb = Join-Path $scratch 'app.db'
+
+if ($realDbAfter -eq $realDbBefore -and $realImgAfter -eq $realImgBefore) {
+  Write-Output "REAL DATA UNTOUCHED: OK (db=$realDbAfter, images=$realImgAfter)"
+} else {
+  Write-Output "REAL DATA CHANGED! db: $realDbBefore -> $realDbAfter ; images: $realImgBefore -> $realImgAfter"
+}
+if (Test-Path $scratchDb) {
+  Write-Output "SCRATCH DB CREATED: $scratchDb ($((Get-Item $scratchDb).Length) bytes)"
+} else {
+  Write-Output "SCRATCH DB MISSING: $scratchDb (LIFEOS_DATA_DIR override may not be working)"
+}
