@@ -10,6 +10,7 @@ import { KanbanBoard } from './KanbanBoard'
 import { BugPanel } from './BugPanel'
 import { TimeStatsPanel } from './TimeStatsPanel'
 import { DevTimer } from './DevTimer'
+import { ProjectMarkButton } from './ProjectMarkButton'
 
 type Tab = 'board' | 'bugs' | 'time'
 
@@ -53,7 +54,7 @@ export function ProjectDetail({ projectId }: { projectId: number }): JSX.Element
 
   return (
     <div className="max-w-4xl">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
         <h2 className="text-base font-bold truncate">{project.name}</h2>
         <select
           value={project.status}
@@ -76,6 +77,24 @@ export function ProjectDetail({ projectId }: { projectId: number }): JSX.Element
             className="text-[10px] px-2 py-1 rounded bg-[var(--border)]"
           >返回列表</button>
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <span className="text-[10px] text-[var(--muted)]">起止日期</span>
+        <input
+          type="date"
+          value={project.start_date ?? ''}
+          onChange={(e) => { void updateProject(project.id, { startDate: e.target.value || null }) }}
+          className="text-[10px] bg-[var(--card)] border border-[var(--border)] rounded px-1.5 py-1 outline-none"
+        />
+        <span className="text-[10px] text-[var(--muted)]">→</span>
+        <input
+          type="date"
+          value={project.end_date ?? ''}
+          onChange={(e) => { void updateProject(project.id, { endDate: e.target.value || null }) }}
+          className="text-[10px] bg-[var(--card)] border border-[var(--border)] rounded px-1.5 py-1 outline-none"
+        />
+        <ProjectMarkButton project={project} />
       </div>
 
       <div className="flex items-center gap-1 mb-3">

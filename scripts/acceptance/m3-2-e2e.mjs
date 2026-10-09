@@ -419,6 +419,72 @@ const noteUnlinked = await evaluate(`__main().innerText.includes('未关联') &&
 check('不关联项目的笔记显示「未关联」', noteUnlinked)
 await shot('18-dev-notes')
 
+// ============ T12 标记为长期任务 ============
+await evaluate(`
+  (() => { [...__main().querySelectorAll('button')].find(b => b.textContent.trim() === '项目')?.click(); return true; })()
+`)
+await sleep(1000)
+// 项目可能仍处于选中状态（点击卡片会切换选中），只有未选中时才点
+const needSelect = await evaluate(`!(__right() && __right().innerText.includes('起止日期'))`)
+if (needSelect) {
+  await evaluate(`[...__left().querySelectorAll('button')].find(b => b.textContent.includes('${PROJECT}'))?.click(); true`)
+  await sleep(1400)
+}
+const detailReady = await evaluate(`__right().innerText.includes('起止日期')`)
+check('回到项目详情（起止日期可编辑）', detailReady)
+
+const markDisabledBefore = await evaluate(`
+  (() => { const b = [...__right().querySelectorAll('button')].find(x => x.textContent.trim() === '标记为长期任务'); return b ? b.disabled : 'not-found'; })()
+`)
+check('未设起止日期时标记按钮禁用', markDisabledBefore === true, `disabled=${markDisabledBefore}`)
+
+const today = await evaluate(`(() => { const d = new Date(); const p = n => String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); })()`)
+const plus = (n) => {
+  const d = new Date(today + 'T00:00:00'); d.setDate(d.getDate() + n)
+  const p = (x) => String(x).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+await evaluate(`
+  (() => {
+    const dates = __right().querySelectorAll('input[type=date]');
+    __setInput(dates[0], '${plus(0)}');
+    __setInput(dates[1], '${plus(20)}');
+    return true;
+  })()
+`)
+await sleep(1500)
+
+await evaluate(`
+  (() => { [...__right().querySelectorAll('button')].find(x => x.textContent.trim() === '标记为长期任务')?.click(); return true; })()
+`)
+await sleep(1800)
+const marked = await evaluate(`
+  (() => {
+    const blue = [...document.querySelectorAll('header div')].filter(e => {
+      const s = getComputedStyle(e);
+      return s.position === 'absolute' && s.backgroundColor === 'rgb(52, 152, 219)' && e.offsetWidth > 0;
+    }).length;
+    return { hasBadge: __right().innerText.includes('已上轴'), blueBlocks: blue };
+  })()
+`)
+check('标记后时间轴出现开发蓝块', marked.hasBadge && marked.blueBlocks >= 1, JSON.stringify(marked))
+await shot('19-dev-marked')
+
+await evaluate(`
+  (() => { [...__right().querySelectorAll('button')].find(x => x.textContent.trim() === '取消标记')?.click(); return true; })()
+`)
+await sleep(1800)
+const unmarked = await evaluate(`
+  (() => {
+    const blue = [...document.querySelectorAll('header div')].filter(e => {
+      const s = getComputedStyle(e);
+      return s.position === 'absolute' && s.backgroundColor === 'rgb(52, 152, 219)' && e.offsetWidth > 0;
+    }).length;
+    return { hasBadge: __right().innerText.includes('已上轴'), blueBlocks: blue };
+  })()
+`)
+check('取消标记后蓝块消失', !unmarked.hasBadge && unmarked.blueBlocks === 0, JSON.stringify(unmarked))
+
 console.log('')
 console.log(`===== ${results.filter((r) => r.pass).length}/${results.length} 通过 =====`)
 for (const r of results.filter((x) => !x.pass)) console.log('  未通过: ' + r.label)
