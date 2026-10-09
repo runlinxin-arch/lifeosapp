@@ -79,7 +79,7 @@ export function MealItemEditor(props: {
           onClick={add}
           className="text-[10px] px-2 py-1 rounded bg-[var(--border)] text-[var(--muted)]"
         >＋ 添加食物</button>
-        <span className="text-[9px] text-[var(--muted)]">蛋白 / 碳水 / 脂肪 单位 g，可留 0</span>
+        <span className="text-[9px] text-[var(--muted)]">蛋白 / 碳水 / 脂肪 单位 g（≤1000），热量 ≤10000 kcal</span>
       </div>
     </div>
   )

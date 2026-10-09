@@ -57,6 +57,16 @@ describe('餐次记录', () => {
     expect(m.items).toEqual([{ name: '鸡胸', calories: 165.3, protein: 0, carbs: 0, fat: 3.6 }])
   })
 
+  it('单项营养超上界被拒绝（拦住多打 0 的误输入）', () => {
+    const base = { date: '2026-10-09', type: 'lunch' as const }
+    expect(() => upsertMeal(db, { ...base, items: [food('误输入', 10001)] })).toThrow('热量')
+    expect(() => upsertMeal(db, { ...base, items: [food('误输入', 100, 1001)] })).toThrow('营养素')
+    expect(() => upsertMeal(db, { ...base, items: [food('误输入', 100, 0, 1001)] })).toThrow('营养素')
+    expect(() => upsertMeal(db, { ...base, items: [food('误输入', 100, 0, 0, 1001)] })).toThrow('营养素')
+    // 上界本身仍可接受
+    expect(upsertMeal(db, { ...base, items: [food('边界值', 10000, 1000, 1000, 1000)] }).items[0].calories).toBe(10000)
+  })
+
   it('按日期区间查询含端点，按日期倒序', () => {
     upsertMeal(db, { date: '2026-10-01', type: 'lunch' })
     upsertMeal(db, { date: '2026-10-05', type: 'lunch' })

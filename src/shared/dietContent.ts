@@ -14,6 +14,13 @@ export const MEAL_LABELS: Record<MealType, string> = {
   snack: '加餐'
 }
 
+/**
+ * 单项食物营养的上界：用于拦住明显误输入（例如多打几个 0），
+ * 上界本身取得足够宽松，正常食物不可能触及。
+ */
+export const MAX_ITEM_CALORIES = 10000
+export const MAX_ITEM_MACRO = 1000
+
 const VALID_TYPES = new Set<string>(MEAL_TYPES)
 
 export function isMealType(v: unknown): v is MealType {
