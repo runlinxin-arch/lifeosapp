@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { openDb } from '../src/main/db'
 import {
   listProjects, getProject, createProject, updateProject, deleteProject, projectStats, listProjectStats,
-  listDevTasks, createDevTask, updateDevTask, deleteDevTask, moveDevTask
+  listDevTasks, createDevTask, updateDevTask, deleteDevTask, moveDevTask,
+  listBugs, createBug, updateBug, deleteBug,
+  listSnippets, createSnippet, updateSnippet, deleteSnippet, searchSnippets,
+  listTechNotes, createTechNote, updateTechNote, deleteTechNote
 } from '../src/main/db/dev'
 import { listRange } from '../src/main/db/longTasks'
 
@@ -272,5 +275,169 @@ describe('看板数据层', () => {
     createDevTask(db, { projectId: p.id, title: 'T' })
     deleteProject(db, p.id)
     expect(listDevTasks(db, p.id)).toHaveLength(0)
+  })
+})
+
+describe('Bug 记录', () => {
+  it('创建后可读回，默认 未修 + 中优先级', () => {
+    const p = createProject(db, { name: 'A' })
+    const b = createBug(db, { projectId: p.id, title: '崩溃' })
+    expect(b).toMatchObject({ title: '崩溃', status: 'open', priority: 'mid', description: '' })
+  })
+
+  it('现象、优先级、状态可写入', () => {
+    const p = createProject(db, { name: 'A' })
+    const b = createBug(db, { projectId: p.id, title: 'B', description: '复现步骤', priority: 'high', status: 'fixing' })
+    expect(b).toMatchObject({ description: '复现步骤', priority: 'high', status: 'fixing' })
+  })
+
+  it('状态流转：未修 → 修复中 → 已修复', () => {
+    const p = createProject(db, { name: 'A' })
+    const b = createBug(db, { projectId: p.id, title: 'B' })
+    expect(updateBug(db, b.id, { status: 'fixing' }).status).toBe('fixing')
+    expect(updateBug(db, b.id, { status: 'fixed' }).status).toBe('fixed')
+  })
+
+  it('非法状态与优先级被拒绝', () => {
+    const p = createProject(db, { name: 'A' })
+    expect(() => createBug(db, { projectId: p.id, title: 'B', status: 'wontfix' as never })).toThrow('Bug 状态')
+    expect(() => createBug(db, { projectId: p.id, title: 'B', priority: 'urgent' as never })).toThrow('优先级')
+  })
+
+  it('标题为空被拒绝', () => {
+    const p = createProject(db, { name: 'A' })
+    expect(() => createBug(db, { projectId: p.id, title: ' ' })).toThrow('Bug 标题不能为空')
+  })
+
+  it('给不存在的项目建 Bug 报错', () => {
+    expect(() => createBug(db, { projectId: 999, title: 'B' })).toThrow('not found')
+  })
+
+  it('列表按 未修 → 修复中 → 已修复，同状态按优先级 高→低', () => {
+    const p = createProject(db, { name: 'A' })
+    createBug(db, { projectId: p.id, title: 'F', status: 'fixed' })
+    createBug(db, { projectId: p.id, title: 'O-low', priority: 'low' })
+    createBug(db, { projectId: p.id, title: 'O-high', priority: 'high' })
+    createBug(db, { projectId: p.id, title: 'X', status: 'fixing' })
+    expect(listBugs(db, p.id).map((b) => b.title)).toEqual(['O-high', 'O-low', 'X', 'F'])
+  })
+
+  it('删除 Bug', () => {
+    const p = createProject(db, { name: 'A' })
+    const b = createBug(db, { projectId: p.id, title: 'B' })
+    deleteBug(db, b.id)
+    expect(listBugs(db, p.id)).toHaveLength(0)
+  })
+
+  it('不同项目的 Bug 互不可见', () => {
+    const a = createProject(db, { name: 'A' })
+    const b = createProject(db, { name: 'B' })
+    createBug(db, { projectId: a.id, title: 'A-bug' })
+    expect(listBugs(db, b.id)).toHaveLength(0)
+  })
+
+  it('修复后项目统计的未修 Bug 数减少', () => {
+    const p = createProject(db, { name: 'A' })
+    const b = createBug(db, { projectId: p.id, title: 'B' })
+    expect(projectStats(db, p.id).openBugs).toBe(1)
+    updateBug(db, b.id, { status: 'fixed' })
+    expect(projectStats(db, p.id).openBugs).toBe(0)
+  })
+})
+
+describe('代码片段', () => {
+  it('创建后可读回，标签以数组形式给出', () => {
+    const s = createSnippet(db, { title: '防抖', code: 'const x = 1', language: 'typescript', tags: ['工具', '性能'] })
+    expect(s.tags).toEqual(['工具', '性能'])
+  })
+
+  it('默认空代码/空语言/空标签', () => {
+    expect(createSnippet(db, { title: 'T' })).toMatchObject({ code: '', language: '', tags: [] })
+  })
+
+  it('标签落库为 JSON 文本', () => {
+    const s = createSnippet(db, { title: 'T', tags: ['a'] })
+    const raw = db.prepare('SELECT tags FROM snippets WHERE id = ?').get(s.id) as { tags: string }
+    expect(raw.tags).toBe('["a"]')
+  })
+
+  it('标签去重、去空白、去空项', () => {
+    expect(createSnippet(db, { title: 'T', tags: [' a ', 'a', '', '  ', 'b'] }).tags).toEqual(['a', 'b'])
+  })
+
+  it('标题为空被拒绝', () => {
+    expect(() => createSnippet(db, { title: '  ' })).toThrow('片段标题不能为空')
+  })
+
+  it('更新是合并语义，标签可整体替换', () => {
+    const s = createSnippet(db, { title: 'T', code: 'c', tags: ['a'] })
+    const u = updateSnippet(db, s.id, { title: 'T2' })
+    expect(u).toMatchObject({ title: 'T2', code: 'c', tags: ['a'] })
+    expect(updateSnippet(db, s.id, { tags: ['b', 'c'] }).tags).toEqual(['b', 'c'])
+  })
+
+  it('搜索：关键词 + 标签', () => {
+    createSnippet(db, { title: '防抖函数', code: 'debounce', language: 'typescript', tags: ['工具'] })
+    createSnippet(db, { title: 'SQL 分页', code: 'LIMIT', language: 'sql', tags: ['数据库'] })
+    expect(searchSnippets(db, { keyword: 'debounce' }).map((s) => s.title)).toEqual(['防抖函数'])
+    expect(searchSnippets(db, { tags: ['数据库'] }).map((s) => s.title)).toEqual(['SQL 分页'])
+    expect(searchSnippets(db, {})).toHaveLength(2)
+  })
+
+  it('坏标签数据回退空数组（不炸界面）', () => {
+    db.prepare("INSERT INTO snippets (title, tags) VALUES ('坏数据', 'not-json')").run()
+    expect(listSnippets(db).find((s) => s.title === '坏数据')!.tags).toEqual([])
+  })
+
+  it('列表按 id 倒序（最新在前）', () => {
+    createSnippet(db, { title: '老' })
+    createSnippet(db, { title: '新' })
+    expect(listSnippets(db).map((s) => s.title)).toEqual(['新', '老'])
+  })
+
+  it('删除片段', () => {
+    const s = createSnippet(db, { title: 'T' })
+    deleteSnippet(db, s.id)
+    expect(listSnippets(db)).toHaveLength(0)
+  })
+})
+
+describe('技术笔记', () => {
+  it('创建、更新、删除', () => {
+    const n = createTechNote(db, { title: 'SQLite WAL', content: '写前日志' })
+    expect(n).toMatchObject({ title: 'SQLite WAL', content: '写前日志', project_id: null })
+    expect(updateTechNote(db, n.id, { content: '改' }).content).toBe('改')
+    deleteTechNote(db, n.id)
+    expect(listTechNotes(db)).toHaveLength(0)
+  })
+
+  it('可关联项目', () => {
+    const p = createProject(db, { name: 'A' })
+    expect(createTechNote(db, { title: 'T', projectId: p.id }).project_id).toBe(p.id)
+  })
+
+  it('关联不存在的项目被拒绝', () => {
+    expect(() => createTechNote(db, { title: 'T', projectId: 999 })).toThrow('project 999 not found')
+  })
+
+  it('可以解除关联', () => {
+    const p = createProject(db, { name: 'A' })
+    const n = createTechNote(db, { title: 'T', projectId: p.id })
+    expect(updateTechNote(db, n.id, { projectId: null }).project_id).toBeNull()
+  })
+
+  it('更新时关联到不存在的项目被拒绝', () => {
+    const n = createTechNote(db, { title: 'T' })
+    expect(() => updateTechNote(db, n.id, { projectId: 999 })).toThrow('not found')
+  })
+
+  it('标题为空被拒绝', () => {
+    expect(() => createTechNote(db, { title: '' })).toThrow('笔记标题不能为空')
+  })
+
+  it('列表按 id 倒序', () => {
+    createTechNote(db, { title: '老' })
+    createTechNote(db, { title: '新' })
+    expect(listTechNotes(db).map((n) => n.title)).toEqual(['新', '老'])
   })
 })

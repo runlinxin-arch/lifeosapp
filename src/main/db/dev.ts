@@ -1,11 +1,17 @@
 import type { DatabaseSync } from 'node:sqlite'
 import type {
+  Bug, BugInput, BugPatch, BugStatus,
   DevColumn, DevTask, DevTaskInput, DevTaskPatch, Priority,
-  Project, ProjectInput, ProjectPatch, ProjectStatus
+  Project, ProjectInput, ProjectPatch, ProjectStatus,
+  Snippet, SnippetInput, SnippetPatch,
+  TechNote, TechNoteInput, TechNotePatch
 } from '@shared/types'
 import { planMove } from '@shared/kanban'
+import { filterSnippets, parseTags, type SnippetFilter } from '@shared/snippetFilter'
 import { assertDateStr, assertNonEmpty } from './validate'
 import { removeBySource } from './longTasks'
+
+export type { SnippetFilter } from '@shared/snippetFilter'
 
 export type {
   ProjectInput, ProjectPatch, ProjectStatus,
@@ -24,6 +30,9 @@ const COLUMNS: readonly DevColumn[] = ['todo', 'doing', 'done']
 const COLUMN_ORDER: Record<DevColumn, number> = { todo: 0, doing: 1, done: 2 }
 const PRIORITIES: readonly Priority[] = ['low', 'mid', 'high']
 const PRIORITY_ORDER: Record<Priority, number> = { high: 0, mid: 1, low: 2 }
+const BUG_STATUSES: readonly BugStatus[] = ['open', 'fixing', 'fixed']
+/** Bug 列表顺序：未修 → 修复中 → 已修复 */
+const BUG_ORDER: Record<BugStatus, number> = { open: 0, fixing: 1, fixed: 2 }
 
 export interface ProjectStats {
   taskTotal: number
@@ -47,6 +56,12 @@ function assertPriority(p: string): void {
 
 function assertColumn(c: string): void {
   if (!COLUMNS.includes(c as DevColumn)) throw new Error(`看板列只能是 todo / doing / done，收到：${c}`)
+}
+
+function assertBugStatus(s: string): void {
+  if (!BUG_STATUSES.includes(s as BugStatus)) {
+    throw new Error(`Bug 状态只能是 open / fixing / fixed，收到：${s}`)
+  }
 }
 
 /** 两端都给出时才校验区间；单端可空 */
@@ -266,4 +281,151 @@ export function moveDevTask(db: DatabaseSync, id: number, toColumn: DevColumn, t
     throw err
   }
   return listDevTasks(db, moving.project_id)
+}
+
+// ---------- Bug ----------
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const asBug = (r: any): Bug => r as Bug
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const asSnippet = (r: any): Snippet => ({ ...r, tags: parseTags(String(r.tags ?? '[]')) })
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const asTechNote = (r: any): TechNote => r as TechNote
+
+export function listBugs(db: DatabaseSync, projectId: number): Bug[] {
+  return db.prepare('SELECT * FROM bugs WHERE project_id = ?').all(projectId).map(asBug)
+    .sort((a, b) => BUG_ORDER[a.status] - BUG_ORDER[b.status]
+      || PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] || a.id - b.id)
+}
+
+export function getBug(db: DatabaseSync, id: number): Bug | null {
+  const row = db.prepare('SELECT * FROM bugs WHERE id = ?').get(id)
+  return row ? asBug(row) : null
+}
+
+export function createBug(db: DatabaseSync, input: BugInput): Bug {
+  const title = assertNonEmpty(input.title, 'Bug 标题')
+  if (!getProject(db, input.projectId)) throw new Error(`project ${input.projectId} not found`)
+  const priority = input.priority ?? 'mid'
+  const status = input.status ?? 'open'
+  assertPriority(priority)
+  assertBugStatus(status)
+
+  const info = db.prepare(`
+    INSERT INTO bugs (project_id, title, description, priority, status) VALUES (?, ?, ?, ?, ?)
+  `).run(input.projectId, title, input.description ?? '', priority, status)
+  return getBug(db, Number(info.lastInsertRowid))!
+}
+
+export function updateBug(db: DatabaseSync, id: number, patch: BugPatch): Bug {
+  const cur = getBug(db, id)
+  if (!cur) throw new Error(`bug ${id} not found`)
+  const title = patch.title !== undefined ? assertNonEmpty(patch.title, 'Bug 标题') : cur.title
+  const priority = patch.priority ?? cur.priority
+  const status = patch.status ?? cur.status
+  assertPriority(priority)
+  assertBugStatus(status)
+
+  db.prepare(`
+    UPDATE bugs SET title=?, description=?, priority=?, status=?,
+      updated_at=datetime('now','localtime') WHERE id=?
+  `).run(title, patch.description ?? cur.description, priority, status, id)
+  return getBug(db, id)!
+}
+
+export function deleteBug(db: DatabaseSync, id: number): void {
+  db.prepare('DELETE FROM bugs WHERE id = ?').run(id)
+}
+
+// ---------- 代码片段 ----------
+
+/** 标签规范化：去空白、去空项、去重（保持首次出现顺序） */
+function normalizeTags(tags: string[] | undefined): string[] {
+  if (!tags) return []
+  const out: string[] = []
+  for (const t of tags) {
+    const v = String(t).trim()
+    if (v && !out.includes(v)) out.push(v)
+  }
+  return out
+}
+
+export function listSnippets(db: DatabaseSync): Snippet[] {
+  return db.prepare('SELECT * FROM snippets ORDER BY id DESC').all().map(asSnippet)
+}
+
+export function getSnippet(db: DatabaseSync, id: number): Snippet | null {
+  const row = db.prepare('SELECT * FROM snippets WHERE id = ?').get(id)
+  return row ? asSnippet(row) : null
+}
+
+export function createSnippet(db: DatabaseSync, input: SnippetInput): Snippet {
+  const title = assertNonEmpty(input.title, '片段标题')
+  const info = db.prepare(`
+    INSERT INTO snippets (title, code, language, tags) VALUES (?, ?, ?, ?)
+  `).run(title, input.code ?? '', input.language ?? '', JSON.stringify(normalizeTags(input.tags)))
+  return getSnippet(db, Number(info.lastInsertRowid))!
+}
+
+export function updateSnippet(db: DatabaseSync, id: number, patch: SnippetPatch): Snippet {
+  const cur = getSnippet(db, id)
+  if (!cur) throw new Error(`snippet ${id} not found`)
+  const title = patch.title !== undefined ? assertNonEmpty(patch.title, '片段标题') : cur.title
+  db.prepare(`
+    UPDATE snippets SET title=?, code=?, language=?, tags=?,
+      updated_at=datetime('now','localtime') WHERE id=?
+  `).run(
+    title,
+    patch.code ?? cur.code,
+    patch.language ?? cur.language,
+    JSON.stringify(patch.tags !== undefined ? normalizeTags(patch.tags) : cur.tags),
+    id
+  )
+  return getSnippet(db, id)!
+}
+
+export function deleteSnippet(db: DatabaseSync, id: number): void {
+  db.prepare('DELETE FROM snippets WHERE id = ?').run(id)
+}
+
+export function searchSnippets(db: DatabaseSync, filter: SnippetFilter): Snippet[] {
+  return filterSnippets(listSnippets(db), filter)
+}
+
+// ---------- 技术笔记 ----------
+
+export function listTechNotes(db: DatabaseSync): TechNote[] {
+  return db.prepare('SELECT * FROM tech_notes ORDER BY id DESC').all().map(asTechNote)
+}
+
+export function getTechNote(db: DatabaseSync, id: number): TechNote | null {
+  const row = db.prepare('SELECT * FROM tech_notes WHERE id = ?').get(id)
+  return row ? asTechNote(row) : null
+}
+
+export function createTechNote(db: DatabaseSync, input: TechNoteInput): TechNote {
+  const title = assertNonEmpty(input.title, '笔记标题')
+  const pid = input.projectId ?? null
+  if (pid !== null && !getProject(db, pid)) throw new Error(`project ${pid} not found`)
+  const info = db.prepare('INSERT INTO tech_notes (title, content, project_id) VALUES (?, ?, ?)')
+    .run(title, input.content ?? '', pid)
+  return getTechNote(db, Number(info.lastInsertRowid))!
+}
+
+export function updateTechNote(db: DatabaseSync, id: number, patch: TechNotePatch): TechNote {
+  const cur = getTechNote(db, id)
+  if (!cur) throw new Error(`tech_note ${id} not found`)
+  const title = patch.title !== undefined ? assertNonEmpty(patch.title, '笔记标题') : cur.title
+  const pid = patch.projectId !== undefined ? patch.projectId : cur.project_id
+  if (pid !== null && !getProject(db, pid)) throw new Error(`project ${pid} not found`)
+
+  db.prepare(`
+    UPDATE tech_notes SET title=?, content=?, project_id=?,
+      updated_at=datetime('now','localtime') WHERE id=?
+  `).run(title, patch.content ?? cur.content, pid, id)
+  return getTechNote(db, id)!
+}
+
+export function deleteTechNote(db: DatabaseSync, id: number): void {
+  db.prepare('DELETE FROM tech_notes WHERE id = ?').run(id)
 }
