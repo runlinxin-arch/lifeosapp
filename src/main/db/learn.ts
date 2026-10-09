@@ -4,8 +4,11 @@ import type {
 } from '@shared/types'
 import { assertDateStr, assertNonEmpty } from './validate'
 import { removeBySource } from './longTasks'
+import { progressPercent } from '@shared/learnStats'
 
 export type { LearnItemInput, LearnItemPatch } from '@shared/types'
+// progressPercent 是纯函数且界面也要用，实现在 @shared/learnStats，这里转出以保持数据层入口完整
+export { progressPercent }
 
 const TYPES: readonly LearnType[] = ['book', 'course', 'skill']
 const STATUSES: readonly LearnStatus[] = ['not_started', 'learning', 'done']
@@ -14,13 +17,6 @@ const STATUS_ORDER: Record<LearnStatus, number> = { learning: 0, not_started: 1,
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const rowToItem = (r: any): LearnItem => r as LearnItem
-
-/** 完成百分比：未设总量返回 0（避免除零），其余夹在 0–100 */
-export function progressPercent(item: Pick<LearnItem, 'total_units' | 'done_units'>): number {
-  if (!item.total_units || item.total_units <= 0) return 0
-  const pct = Math.round((item.done_units / item.total_units) * 100)
-  return Math.max(0, Math.min(100, pct))
-}
 
 function assertUnits(totalUnits: number | undefined, doneUnits: number | undefined): void {
   if (totalUnits !== undefined) {

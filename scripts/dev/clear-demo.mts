@@ -48,6 +48,9 @@ const s = db.prepare(`
   DELETE FROM settings WHERE key IN ('timeline.rangeDays','timeline.showDone','remind.enabled','remind.leadMinutes')
 `).run()
 
+// 学习模块的验收数据（笔记与学习记录由外键级联删除）
+const learn = db.prepare("DELETE FROM learn_items WHERE title LIKE '【演示】%' OR title LIKE '【验收】%'").run()
+
 const after = counts()
 
 console.log('删除明细:')
@@ -55,6 +58,7 @@ console.log(`  tasks      ${t.changes} 行（标记数据）`)
 console.log(`  events     ${e.changes} 行`)
 console.log(`  long_tasks ${l.changes} 行`)
 console.log(`  日程汇入残留 ${orphan.changes} 行`)
+console.log(`  learn_items ${learn.changes} 行`)
 console.log(`  settings   ${s.changes} 行（复位为默认）`)
 console.log('')
 console.log('清理前:', JSON.stringify(before))

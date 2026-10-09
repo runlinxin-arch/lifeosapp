@@ -1,6 +1,13 @@
-import type { LearnSession } from './types'
+import type { LearnItem, LearnSession } from './types'
 import { addDays } from './dates'
 import { weekDays } from './layout'
+
+/** 完成百分比：未设总量返回 0（避免除零），其余夹在 0–100 */
+export function progressPercent(item: Pick<LearnItem, 'total_units' | 'done_units'>): number {
+  if (!item.total_units || item.total_units <= 0) return 0
+  const pct = Math.round((item.done_units / item.total_units) * 100)
+  return Math.max(0, Math.min(100, pct))
+}
 
 /** 含端点的时长合计 */
 export function sumMinutes(sessions: LearnSession[], from: string, to: string): number {
