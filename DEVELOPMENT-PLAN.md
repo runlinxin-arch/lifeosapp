@@ -20,6 +20,7 @@
   - M3 跨零点验证：[docs/plans/2026-10-09-m3-midnight-refresh.md](./docs/plans/2026-10-09-m3-midnight-refresh.md)
   - M4 总览计划：[docs/plans/2026-10-09-m4-overview.md](./docs/plans/2026-10-09-m4-overview.md)
   - M4-1 详细计划（健身）：[docs/plans/2026-10-09-m4-1-fitness.md](./docs/plans/2026-10-09-m4-1-fitness.md)
+  - M4-1 验收记录：[docs/plans/2026-10-09-m4-1-acceptance.md](./docs/plans/2026-10-09-m4-1-acceptance.md)
 
 ## 技术栈（全里程碑共用）
 
