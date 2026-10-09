@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Play } from '@shared/types'
 import { gameSummaries, recentPlays, filterPlays, totalMinutes, type PlayRange } from '@shared/entStats'
 import { formatDuration } from '@shared/duration'
-import { todayStr } from '@shared/dates'
+import { shouldFollowToday } from '@shared/formDate'
 import { useToday } from '../../hooks/useToday'
 import { useEntertainmentStore } from '../../stores/entertainmentStore'
 
@@ -21,12 +21,18 @@ export function PlayLog({ plays }: { plays: Play[] }): JSX.Element {
   const removePlay = useEntertainmentStore((s) => s.removePlay)
 
   const [game, setGame] = useState('')
-  const [date, setDate] = useState(() => todayStr())
   const [minutes, setMinutes] = useState('')
 
   const today = useToday()
+  const [date, setDate] = useState(today)
+  const [dateTouched, setDateTouched] = useState(false)
   const [range, setRange] = useState<PlayRange>('week')
   const [gameFilter, setGameFilter] = useState('')
+
+  // 跨零点时默认日期跟随「今天」；用户手动选过日期就不再覆盖
+  useEffect(() => {
+    if (shouldFollowToday({ touched: dateTouched, current: date, today })) setDate(today)
+  }, [dateTouched, date, today])
 
   const submit = async (): Promise<void> => {
     const m = Math.round(Number(minutes))
@@ -62,7 +68,7 @@ export function PlayLog({ plays }: { plays: Play[] }): JSX.Element {
           <input
             data-play-date
             type="date" value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => { setDateTouched(true); setDate(e.target.value) }}
             className={inputCls}
           />
           <input

@@ -1,0 +1,159 @@
+// M4 跨零点验证：跨零点后表单默认日期是否跟随「今天」
+//
+// 修复前的现象：应用挂着过夜，第二天在「游玩记录」「影视」「书籍」表单里录入，
+// 默认日期仍停在昨天，记录会落到错误的日期上。
+//
+// 做法同 m3-midnight-e2e.mjs：文档启动前替换页面的 Date，让"现在"从真实今天 23:59:50
+// 起按正常速度流逝，约 11 秒后应用真的经历一次跨零点（时钟保持 1 倍速，避免定时器语义被扭曲）。
+//
+// 运行前置：应用以 --remote-debugging-port=9222 启动，且数据目录由 LIFEOS_DATA_DIR 指向临时目录
+
+// 安全闸门：本脚本会写入数据，必须由验收 runner 指定临时数据目录，避免污染真实数据
+if (!process.env.LIFEOS_DATA_DIR) {
+  console.error('拒绝运行：未设置 LIFEOS_DATA_DIR。')
+  console.error('请先设置 LIFEOS_DATA_DIR=<临时目录> 并以该目录启动应用（见 scripts/acceptance/m4-all.ps1）。')
+  process.exit(2)
+}
+
+const targets = await (await fetch('http://127.0.0.1:9222/json')).json()
+const page = targets.find((t) => t.type === 'page')
+if (!page) { console.error('无渲染页面'); process.exit(1) }
+
+const ws = new WebSocket(page.webSocketDebuggerUrl)
+await new Promise((res, rej) => { ws.addEventListener('open', res); ws.addEventListener('error', rej) })
+let id = 0
+const pending = new Map()
+ws.addEventListener('message', (ev) => {
+  const m = JSON.parse(ev.data)
+  if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id) }
+})
+const send = (method, params) => new Promise((res) => {
+  const i = ++id
+  pending.set(i, res)
+  ws.send(JSON.stringify({ id: i, method, params }))
+})
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+async function evaluate(expression) {
+  const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
+  if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description ?? 'eval error')
+  return r.result.result.value
+}
+
+const results = []
+const check = (label, pass, detail) => {
+  results.push({ label, pass })
+  console.log(`${pass ? 'PASS' : 'FAIL'}  ${label}${detail ? '  → ' + detail : ''}`)
+}
+const waitFor = async (expr, timeoutMs = 30000) => {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    if (await evaluate(expr)) return true
+    await sleep(300)
+  }
+  return false
+}
+
+const HELPERS = `
+  window.__goto = (name) => { [...document.querySelectorAll('aside button')].find(b => b.textContent.includes(name))?.click(); };
+  window.__set = (el, v) => {
+    const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, String(v));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  true;
+`
+
+// ---------- 1. 读出应用真实「今天」，据此算出跨零点后的日期 ----------
+const D0 = await evaluate(`(() => {
+  const p = (n) => String(n).padStart(2, '0');
+  const d = new Date();
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+})()`)
+const D1 = await evaluate(`(() => {
+  const p = (n) => String(n).padStart(2, '0');
+  const d = new Date('${D0}T12:00:00');
+  d.setDate(d.getDate() + 1);
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+})()`)
+console.log(`真实今天 ${D0} → 跨零点后应为 ${D1}`)
+console.log('')
+
+// ---------- 2. 注入可控时钟（23:59:50 起，1 倍速） ----------
+const BASE = `${D0}T23:59:50`
+const INJECT = `
+(() => {
+  try {
+    const RealDate = Date;
+    const base = new RealDate(${JSON.stringify(BASE)}).getTime();
+    const t0 = performance.now();
+    const fakeNow = () => base + (performance.now() - t0);
+    class FakeDate extends RealDate {
+      constructor(...args) {
+        if (args.length === 0) super(fakeNow());
+        else super(...args);
+      }
+      static now() { return fakeNow(); }
+    }
+    window.Date = FakeDate;
+    window.__injectState = 'ok';
+  } catch (e) {
+    window.__injectState = 'error: ' + (e && e.message ? e.message : String(e));
+  }
+})();
+`
+await send('Page.enable')
+await send('Page.addScriptToEvaluateOnNewDocument', { source: INJECT })
+await send('Page.reload', { ignoreCache: true })
+await sleep(2500)
+const injectState = await evaluate(`window.__injectState ?? '(未执行)'`)
+if (injectState !== 'ok') { console.error('注入失败：' + injectState); ws.close(); process.exit(1) }
+console.log(`已注入可控时钟（起点 ${BASE}，与真实时间同速）`)
+
+await evaluate(HELPERS)
+await waitFor(`!!document.querySelector('aside')`, 10000)
+
+// ---------- 3. 跨零点前：游玩记录表单默认日期 = D0 ----------
+await evaluate(`__goto('游戏娱乐'); true`)
+await sleep(600)
+await evaluate(`document.querySelector('[data-tab="plays"]')?.click(); true`)
+await waitFor(`!!document.querySelector('[data-play-date]')`, 6000)
+const beforeValue = await evaluate(`document.querySelector('[data-play-date]')?.value`)
+check('跨零点前：游玩记录默认日期是今天', beforeValue === D0, `date=${beforeValue}`)
+
+// ---------- 4. 等待真的跨过零点 ----------
+const crossed = await waitFor(`document.querySelector('[data-play-date]')?.value === '${D1}'`, 30000)
+const afterValue = await evaluate(`document.querySelector('[data-play-date]')?.value`)
+check('**跨零点后：游玩记录默认日期自动跟随到新的一天**', crossed && afterValue === D1, `date=${afterValue}`)
+
+// ---------- 5. 端到端：用默认日期记录一次游玩，落库日期应是 D1 ----------
+await evaluate(`(async () => {
+  window.__set(document.querySelector('[data-play-game]'), '零点测试');
+  window.__set(document.querySelector('[data-play-minutes]'), 30);
+  return true;
+})()`)
+await sleep(250)
+await evaluate(`document.querySelector('[data-action="add-play"]')?.click(); true`)
+await sleep(1200)
+const stored = await evaluate(`(async () => {
+  const rows = await window.lifeos.ent.listPlays();
+  const hit = rows.find(r => r.game === '零点测试');
+  return hit ? { date: hit.date, minutes: hit.minutes } : null;
+})()`)
+check('用默认日期录入的游玩记录落在新的一天', !!stored && stored.date === D1 && stored.minutes === 30, JSON.stringify(stored))
+
+// ---------- 6. 影视表单（跨零点后新挂载）同样默认新的一天 ----------
+await evaluate(`document.querySelector('[data-tab="screen"]')?.click(); true`)
+await waitFor(`!!document.querySelector('[data-media-date]')`, 6000)
+const mediaDate = await evaluate(`document.querySelector('[data-media-date]')?.value`)
+check('影视表单默认日期也是新的一天', mediaDate === D1, `date=${mediaDate}`)
+
+// ---------- 7. 卡片与页面在跨零点后仍可用 ----------
+await evaluate(`__goto('今天'); true`)
+await sleep(1200)
+check('跨零点后「今天」页卡片仍正常渲染',
+  await evaluate(`!!document.querySelector('[data-today-card="fitness"]') && !!document.querySelector('[data-today-card="diet"]')`))
+
+console.log('')
+console.log(`===== ${results.filter((r) => r.pass).length}/${results.length} 通过 =====`)
+for (const r of results.filter((x) => !x.pass)) console.log('  未通过: ' + r.label)
+ws.close()

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Media, MediaStatus, MediaType } from '@shared/types'
 import { mediaGroups, mediaInScope, type MediaScope } from '@shared/entStats'
 import {
   MEDIA_STATUSES, MEDIA_STATUS_LABELS, MEDIA_TYPES, MEDIA_TYPE_LABELS
 } from '@shared/entContent'
-import { todayStr } from '@shared/dates'
+import { shouldFollowToday } from '@shared/formDate'
+import { useToday } from '../../hooks/useToday'
 import { useEntertainmentStore } from '../../stores/entertainmentStore'
 import { StarRating } from './StarRating'
 
@@ -21,12 +22,19 @@ export function MediaList({ items, scope }: { items: Media[]; scope: MediaScope 
   const removeMedia = useEntertainmentStore((s) => s.removeMedia)
 
   const allowed = typesFor(scope)
+  const today = useToday()
   const [title, setTitle] = useState('')
   const [type, setType] = useState<MediaType>(allowed[0])
   const [status, setStatus] = useState<MediaStatus>('planned')
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState('')
-  const [date, setDate] = useState(() => todayStr())
+  const [date, setDate] = useState(today)
+  const [dateTouched, setDateTouched] = useState(false)
+
+  // 跨零点时默认日期跟随「今天」；用户手动选过日期就不再覆盖
+  useEffect(() => {
+    if (shouldFollowToday({ touched: dateTouched, current: date, today })) setDate(today)
+  }, [dateTouched, date, today])
 
   const scoped = mediaInScope(items, scope)
   const groups = mediaGroups(scoped)
@@ -72,7 +80,7 @@ export function MediaList({ items, scope }: { items: Media[]; scope: MediaScope 
           <input
             data-media-date
             type="date" value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => { setDateTouched(true); setDate(e.target.value) }}
             className={inputCls}
           />
         </div>
