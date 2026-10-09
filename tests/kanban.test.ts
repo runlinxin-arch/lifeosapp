@@ -1,7 +1,63 @@
 import { describe, it, expect } from 'vitest'
-import { columnsOf, planMove, type Positioned } from '../src/shared/kanban'
+import { columnsOf, dropIndexFromY, planMove, type Positioned } from '../src/shared/kanban'
 
 const p = (id: number, column: 'todo' | 'doing' | 'done', position: number): Positioned => ({ id, column, position })
+
+describe('dropIndexFromY', () => {
+  // 三张卡：0-40 / 44-84 / 88-128，中线分别 20 / 64 / 108
+  const cards = [
+    { top: 0, height: 40 },
+    { top: 44, height: 40 },
+    { top: 88, height: 40 }
+  ]
+
+  it('指针在第一张上半部 → 插到最前', () => {
+    expect(dropIndexFromY(cards, 5)).toBe(0)
+    expect(dropIndexFromY(cards, 19)).toBe(0)
+  })
+
+  it('指针过第一张中线 → 插到第二张前', () => {
+    expect(dropIndexFromY(cards, 21)).toBe(1)
+    expect(dropIndexFromY(cards, 63)).toBe(1)
+  })
+
+  it('指针过第二张中线 → 插到第三张前', () => {
+    expect(dropIndexFromY(cards, 65)).toBe(2)
+    expect(dropIndexFromY(cards, 107)).toBe(2)
+  })
+
+  it('指针在最后一张中线之下 → 插到末尾', () => {
+    expect(dropIndexFromY(cards, 109)).toBe(3)
+    expect(dropIndexFromY(cards, 999)).toBe(3)
+  })
+
+  it('恰好等于中线时算「下一张之前」', () => {
+    expect(dropIndexFromY(cards, 20)).toBe(1)
+    expect(dropIndexFromY(cards, 64)).toBe(2)
+  })
+
+  it('指针在列顶部之上 → 0', () => {
+    expect(dropIndexFromY(cards, -50)).toBe(0)
+  })
+
+  it('空列返回 0', () => {
+    expect(dropIndexFromY([], 123)).toBe(0)
+  })
+
+  it('单张卡：上半插前、下半插后', () => {
+    const one = [{ top: 10, height: 40 }]
+    expect(dropIndexFromY(one, 15)).toBe(0)
+    expect(dropIndexFromY(one, 35)).toBe(1)
+  })
+
+  it('结果恒在 [0, 卡片数] 区间内', () => {
+    for (const y of [-100, 0, 30, 60, 100, 500]) {
+      const i = dropIndexFromY(cards, y)
+      expect(i).toBeGreaterThanOrEqual(0)
+      expect(i).toBeLessThanOrEqual(cards.length)
+    }
+  })
+})
 
 describe('planMove', () => {
   const board: Positioned[] = [

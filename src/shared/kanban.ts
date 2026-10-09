@@ -20,6 +20,20 @@ export function columnsOf(items: Positioned[]): Record<DevColumn, Positioned[]> 
 }
 
 /**
+ * 由鼠标 Y 坐标算出插入索引。
+ *
+ * 判定规则：从上往下找第一张「中线在指针下方」的卡片，插到它前面；都不满足则插到末尾。
+ * 这样整列都是有效投放区（而不是只有卡片之间的窄缝），落点也更符合直觉。
+ */
+export function dropIndexFromY(cards: { top: number; height: number }[], clientY: number): number {
+  for (let i = 0; i < cards.length; i++) {
+    const mid = cards[i].top + cards[i].height / 2
+    if (clientY < mid) return i
+  }
+  return cards.length
+}
+
+/**
  * 纯函数：把 taskId 移到 toColumn 的 toIndex 位置，返回**完整**的新列表。
  * - toIndex 越界会夹到 [0, 目标列长度]
  * - 移动后原列与目标列都重排为 0..n-1，不留空洞

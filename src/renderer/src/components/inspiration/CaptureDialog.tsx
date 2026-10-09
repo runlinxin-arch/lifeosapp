@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { CaptureKind } from '@shared/types'
 import { ALLOWED_MIMES } from '@shared/imageName'
 import { useInspStore } from '../../stores/inspStore'
+import { api } from '../../lib/ipc'
 
 const inputCls = 'w-full bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1.5 text-xs outline-none focus:border-[var(--accent)]'
 
@@ -40,11 +41,26 @@ export function CaptureDialog(props: { open: boolean; boardId: number | null; on
       return
     }
     const buf = await file.arrayBuffer()
-    // 这里只产生预览用的 objectURL，绝不上传给主进程——路径由主进程自己生成
+    // 只产生预览用的 objectURL，绝不上传给主进程——文件名与路径由主进程自己生成
     setPreview({ url: URL.createObjectURL(file), bytes: new Uint8Array(buf), mime: file.type })
   }
 
-  /** 粘贴板里的图片 */
+  /** 从剪贴板读图。走主进程，无需授权也不依赖焦点（键盘 Ctrl+V 仍照常可用）。 */
+  const pasteFromClipboard = async (): Promise<void> => {
+    setLocalError(null)
+    const r = await api.insp.readClipboardImage()
+    if (!r) {
+      setLocalError('剪贴板里没有图片。先复制一张图片（截图工具、浏览器右键复制图片等）再试。')
+      return
+    }
+    const raw = r.bytes instanceof Uint8Array ? r.bytes : new Uint8Array(r.bytes as ArrayBufferLike)
+    // 复制成自有缓冲：既满足 BlobPart 的类型要求，也避免继续引用 IPC 传来的缓冲
+    const bytes = new Uint8Array(raw.length)
+    bytes.set(raw)
+    setPreview({ url: URL.createObjectURL(new Blob([bytes], { type: r.mime })), bytes, mime: r.mime })
+  }
+
+  /** 粘贴板里的图片（Ctrl+V 快捷键路径） */
   const onPaste = (e: React.ClipboardEvent): void => {
     const item = [...e.clipboardData.items].find((i) => i.kind === 'file' && i.type.startsWith('image/'))
     if (!item) return
@@ -57,7 +73,7 @@ export function CaptureDialog(props: { open: boolean; boardId: number | null; on
     const tags = tagText.split(/[,，\s]+/).map((x) => x.trim()).filter(Boolean)
 
     if (kind === 'image' && !preview) {
-      setLocalError('请先粘贴或选择一张图片')
+      setLocalError('请先「选择图片」或「粘贴」一张图片')
       return
     }
     if (kind === 'link' && !/^https?:\/\//i.test(sourceUrl.trim())) {
@@ -106,22 +122,51 @@ export function CaptureDialog(props: { open: boolean; boardId: number | null; on
 
         {kind === 'image' && (
           <div className="mb-3">
-            <div
-              className="border border-dashed border-[var(--border)] rounded-lg h-40 flex items-center justify-center cursor-pointer overflow-hidden"
-              onClick={() => fileRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault()
-                const f = e.dataTransfer.files[0]
-                if (f) void acceptFile(f)
-              }}
-            >
-              {preview
-                ? <img src={preview.url} alt="预览" className="max-h-full max-w-full object-contain" />
-                : <span className="text-[10px] text-[var(--muted)] text-center px-4">
-                    点这里选择图片，或直接粘贴（Ctrl+V）／拖入
-                  </span>}
-            </div>
+            {preview ? (
+              <div className="border border-[var(--border)] rounded-lg p-2">
+                <img
+                  src={preview.url}
+                  alt="预览"
+                  className="w-full max-h-44 object-contain bg-[var(--bg)] rounded"
+                />
+                <div className="mt-1.5 flex items-center gap-2 text-[9px] text-[var(--muted)]">
+                  <span>{Math.max(1, Math.round(preview.bytes.length / 1024))} KB · {preview.mime.replace('image/', '').toUpperCase()}</span>
+                  <button
+                    onClick={() => { setPreview(null); setLocalError(null) }}
+                    className="ml-auto text-[var(--accent)]"
+                  >重新选择</button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  data-capture-action="pick-file"
+                  onClick={() => fileRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    const f = e.dataTransfer.files[0]
+                    if (f) void acceptFile(f)
+                  }}
+                  className="h-28 flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[var(--border)] hover:border-[var(--accent)] transition-colors"
+                >
+                  <span className="text-xl">📁</span>
+                  <span className="text-xs">选择图片</span>
+                  <span className="text-[9px] text-[var(--muted)]">点击选择，也可把文件拖到这里</span>
+                </button>
+
+                <button
+                  data-capture-action="paste-clipboard"
+                  onClick={() => void pasteFromClipboard()}
+                  className="h-28 flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[var(--border)] hover:border-[var(--accent)] transition-colors"
+                >
+                  <span className="text-xl">📋</span>
+                  <span className="text-xs">粘贴</span>
+                  <span className="text-[9px] text-[var(--muted)]">读取剪贴板，或按 Ctrl+V</span>
+                </button>
+              </div>
+            )}
+
             <input
               ref={fileRef}
               type="file"

@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, clipboard } from 'electron'
 import type { DatabaseSync } from 'node:sqlite'
 import type { ModuleKey } from '@shared/types'
 import * as tasks from './db/tasks'
@@ -9,6 +9,7 @@ import * as learn from './db/learn'
 import * as dev from './db/dev'
 import * as insp from './db/inspiration'
 import { capture } from './capture'
+import { readClipboardImage } from './clipboardImage'
 import { deleteImageFile, saveImageFile } from './images'
 import type { CaptureInput } from '@shared/types'
 import { getAllSettings, setSetting, type SettingsKey } from './db/settings'
@@ -125,4 +126,6 @@ export function registerIpc(db: DatabaseSync): void {
   ipcMain.handle('insp:updateBoard', (_e, id: number, patch: insp.BoardPatch) => insp.updateBoard(db, id, patch))
   ipcMain.handle('insp:deleteBoard', (_e, id: number) => insp.deleteBoard(db, id))
   ipcMain.handle('insp:boardStats', () => [...insp.boardStats(db).entries()])
+  // 渲染进程读剪贴板需要授权且依赖焦点；改由主进程读，稳定且无需授权
+  ipcMain.handle('insp:readClipboardImage', () => readClipboardImage(clipboard))
 }

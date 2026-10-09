@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { DevColumn, DevTask, Priority } from '@shared/types'
-import { DEV_COLUMNS } from '@shared/kanban'
+import { DEV_COLUMNS, dropIndexFromY } from '@shared/kanban'
 import { formatDuration } from '@shared/duration'
 import { minutesByTask } from '@shared/devStats'
 import { useDevStore } from '../../stores/devStore'
@@ -14,6 +14,10 @@ const PRIORITY_DOT: Record<Priority, { color: string; label: string }> = {
 }
 
 const DRAG_MIME = 'application/x-lifeos-devtask'
+/** 落点指示条占位高度：始终存在于文档流中，只在激活时变色，避免拖拽过程抖动 */
+const GAP_H = 6
+
+interface DropTarget { column: DevColumn; index: number }
 
 export function KanbanBoard({ projectId }: { projectId: number }): JSX.Element {
   const tasks = useDevStore((s) => s.tasks)
@@ -25,8 +29,9 @@ export function KanbanBoard({ projectId }: { projectId: number }): JSX.Element {
   const running = useDevTimerStore((s) => s.running)
   const startTimer = useDevTimerStore((s) => s.start)
 
-  const [hover, setHover] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null)
   const [newTitle, setNewTitle] = useState('')
+  const colRefs = useRef<Partial<Record<DevColumn, HTMLDivElement | null>>>({})
 
   const logged = useMemo(() => minutesByTask(sessions), [sessions])
   const byColumn = useMemo(() => {
@@ -37,26 +42,46 @@ export function KanbanBoard({ projectId }: { projectId: number }): JSX.Element {
     return out
   }, [tasks])
 
-  const submit = async (column: DevColumn): Promise<void> => {
+  const submit = async (): Promise<void> => {
     const t = newTitle.trim()
     if (!t) return
-    if (await createTask({ projectId, title: t, column })) setNewTitle('')
+    if (await createTask({ projectId, title: t, column: 'todo' })) setNewTitle('')
+  }
+
+  /** 由列内各卡片的位置算出插入索引——整列都参与判定，不再依赖窄缝命中 */
+  const indexFromY = (column: DevColumn, clientY: number): number => {
+    const el = colRefs.current[column]
+    if (!el) return 0
+    const wraps = [...el.querySelectorAll<HTMLElement>('[data-card-wrap]')]
+    const rects = wraps.map((w) => {
+      const r = w.getBoundingClientRect()
+      return { top: r.top, height: r.height }
+    })
+    return dropIndexFromY(rects, clientY)
+  }
+
+  const onColumnDragOver = (e: React.DragEvent, column: DevColumn): void => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const index = indexFromY(column, e.clientY)
+    setDropTarget((cur) => (cur && cur.column === column && cur.index === index ? cur : { column, index }))
   }
 
   /**
    * 落点处理：从 dataTransfer 读任务 id，**不依赖组件状态**。
    * 组件状态会被 React 批处理，若 dragstart 与 drop 落在同一批次里会读到旧值。
    */
-  const onDropAt = (e: React.DragEvent, column: DevColumn, index: number): void => {
+  const onColumnDrop = (e: React.DragEvent, column: DevColumn): void => {
     e.preventDefault()
-    setHover(null)
+    const index = indexFromY(column, e.clientY)
+    setDropTarget(null)
     const raw = e.dataTransfer.getData(DRAG_MIME)
     const id = Number(raw)
     if (!raw || !Number.isInteger(id)) return
     void moveTask(id, column, index)
   }
 
-  const clearDrag = (): void => setHover(null)
+  const clearDrag = (): void => setDropTarget(null)
 
   return (
     <div>
@@ -64,90 +89,84 @@ export function KanbanBoard({ projectId }: { projectId: number }): JSX.Element {
         <input
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') void submit('todo') }}
+          onKeyDown={(e) => { if (e.key === 'Enter') void submit() }}
           placeholder="新建任务，回车加入「待办」"
           className="flex-1 bg-[var(--card)] border border-[var(--border)] rounded px-2 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
         />
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        {DEV_COLUMNS.map((col) => (
-          <div key={col} className="bg-[var(--card)]/40 border border-[var(--border)] rounded-lg p-2 min-h-[200px]">
-            <div className="flex items-center gap-2 px-1 mb-2">
-              <span className="text-xs font-medium">{COLUMN_LABEL[col]}</span>
-              <span className="text-[10px] text-[var(--muted)]">{byColumn[col].length}</span>
-            </div>
-
-            {byColumn[col].map((t, i) => (
-              <div key={t.id}>
-                <DropZone
-                  column={col}
-                  index={i}
-                  active={hover === `${col}:${i}`}
-                  onEnter={() => setHover(`${col}:${i}`)}
-                  onLeave={() => setHover(null)}
-                  onDrop={(e) => onDropAt(e, col, i)}
-                />
-                <TaskCard
-                  task={t}
-                  minutes={logged.get(t.id) ?? 0}
-                  running={running?.taskId === t.id}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData(DRAG_MIME, String(t.id))
-                    e.dataTransfer.effectAllowed = 'move'
-                  }}
-                  onDragEnd={clearDrag}
-                  onStartTimer={() => startTimer(t.id, t.title)}
-                  onMove={(to) => void moveTask(t.id, to, 9999)}
-                  onDelete={() => void removeTask(t.id)}
-                />
+        {DEV_COLUMNS.map((col) => {
+          const active = dropTarget?.column === col ? dropTarget.index : null
+          return (
+            <div
+              key={col}
+              ref={(el) => { colRefs.current[col] = el }}
+              data-kanban-column={col}
+              onDragOver={(e) => onColumnDragOver(e, col)}
+              onDragLeave={(e) => {
+                // 只在真正离开这一列时清除，避免子元素间移动导致指示条闪烁
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setDropTarget((cur) => (cur?.column === col ? null : cur))
+                }
+              }}
+              onDrop={(e) => onColumnDrop(e, col)}
+              className="bg-[var(--card)]/40 border border-[var(--border)] rounded-lg p-2 min-h-[220px]"
+            >
+              <div className="flex items-center gap-2 px-1 mb-2">
+                <span className="text-xs font-medium">{COLUMN_LABEL[col]}</span>
+                <span className="text-[10px] text-[var(--muted)]">{byColumn[col].length}</span>
               </div>
-            ))}
 
-            <DropZone
-              column={col}
-              index={byColumn[col].length}
-              active={hover === `${col}:end`}
-              onEnter={() => setHover(`${col}:end`)}
-              onLeave={() => setHover(null)}
-              onDrop={(e) => onDropAt(e, col, byColumn[col].length)}
-            />
+              {byColumn[col].map((t, i) => (
+                <div key={t.id}>
+                  <DropGap active={active === i} />
+                  <div data-card-wrap>
+                    <TaskCard
+                      task={t}
+                      minutes={logged.get(t.id) ?? 0}
+                      running={running?.taskId === t.id}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(DRAG_MIME, String(t.id))
+                        e.dataTransfer.effectAllowed = 'move'
+                      }}
+                      onDragEnd={clearDrag}
+                      onStartTimer={() => startTimer(t.id, t.title)}
+                      onMove={(to) => void moveTask(t.id, to, 9999)}
+                      onDelete={() => void removeTask(t.id)}
+                    />
+                  </div>
+                </div>
+              ))}
 
-            {byColumn[col].length === 0 && (
-              <div className="text-[10px] text-[var(--muted)] text-center py-4">拖到这里</div>
-            )}
-          </div>
-        ))}
+              <DropGap active={active === byColumn[col].length} />
+
+              {byColumn[col].length === 0 && (
+                <div className="text-[10px] text-[var(--muted)] text-center py-8 select-none">
+                  {active !== null ? '松手放到这里' : '拖到这里'}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       <div className="mt-2 text-[10px] text-[var(--muted)]">
-        拖动卡片可跨列或列内排序；也可以点卡片上的「移动到…」选择目标列（效果等价）。
+        整列都是投放区：指针落在哪张卡的上半部分，就插到它前面；落在下半部分，就插到它后面。
       </div>
     </div>
   )
 }
 
-function DropZone(props: {
-  column: DevColumn
-  index: number
-  active: boolean
-  onEnter: () => void
-  onLeave: () => void
-  onDrop: (e: React.DragEvent) => void
-}): JSX.Element {
+/** 投放位置指示条：常驻文档流，激活时变蓝，不引起布局抖动 */
+function DropGap({ active }: { active: boolean }): JSX.Element {
   return (
-    <div
-      data-dropzone={`${props.column}:${props.index}`}
-      onDragOver={(e) => { e.preventDefault(); props.onEnter() }}
-      onDragLeave={props.onLeave}
-      onDrop={props.onDrop}
-      className="rounded transition-all"
-      style={{
-        height: props.active ? 22 : 8,
-        background: props.active ? 'var(--accent)' : 'transparent',
-        opacity: props.active ? 0.35 : 1
-      }}
-    />
+    <div className="flex items-center" style={{ height: GAP_H }} aria-hidden>
+      <div
+        className="w-full rounded-full transition-colors"
+        style={{ height: active ? 3 : 0, background: active ? 'var(--accent)' : 'transparent' }}
+      />
+    </div>
   )
 }
 
@@ -170,7 +189,7 @@ function TaskCard(props: {
       data-devcard={task.id}
       onDragStart={props.onDragStart}
       onDragEnd={props.onDragEnd}
-      className={`group rounded-lg border px-2 py-1.5 mb-0.5 cursor-grab active:cursor-grabbing ${
+      className={`group rounded-lg border px-2 py-1.5 cursor-grab active:cursor-grabbing ${
         props.running ? 'border-[#3498db] bg-[#3498db1a]' : 'border-[var(--border)] bg-[var(--card)]'
       }`}
     >

@@ -96,7 +96,8 @@ const api = {
     createBoard: (input: unknown): Promise<unknown> => ipcRenderer.invoke('insp:createBoard', input),
     updateBoard: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('insp:updateBoard', id, patch),
     removeBoard: (id: number): Promise<unknown> => ipcRenderer.invoke('insp:deleteBoard', id),
-    boardStats: (): Promise<unknown> => ipcRenderer.invoke('insp:boardStats')
+    boardStats: (): Promise<unknown> => ipcRenderer.invoke('insp:boardStats'),
+    readClipboardImage: (): Promise<unknown> => ipcRenderer.invoke('insp:readClipboardImage')
   }
 }
 

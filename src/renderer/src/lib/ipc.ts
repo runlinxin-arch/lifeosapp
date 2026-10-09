@@ -122,6 +122,8 @@ interface LifeosApi {
     updateBoard(id: number, patch: BoardPatch): Promise<InspirationBoard>
     removeBoard(id: number): Promise<void>
     boardStats(): Promise<[number, BoardStat][]>
+    /** 主进程读剪贴板图片；没有图片返回 null */
+    readClipboardImage(): Promise<{ bytes: Uint8Array; mime: string } | null>
   }
 }
 
