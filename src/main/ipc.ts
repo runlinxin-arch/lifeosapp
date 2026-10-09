@@ -10,6 +10,7 @@ import * as dev from './db/dev'
 import * as insp from './db/inspiration'
 import * as fit from './db/fitness'
 import * as diet from './db/diet'
+import * as ent from './db/entertainment'
 import { capture } from './capture'
 import { readClipboardImage } from './clipboardImage'
 import { deleteImageFile, saveImageFile } from './images'
@@ -157,4 +158,20 @@ export function registerIpc(db: DatabaseSync): void {
   ipcMain.handle('diet:getPlan', (_e, date: string, type: diet.MealType) => diet.getPlan(db, date, type))
   ipcMain.handle('diet:upsertMealPlan', (_e, input: diet.MealPlanInput) => diet.upsertMealPlan(db, input))
   ipcMain.handle('diet:deletePlan', (_e, id: number) => diet.deletePlan(db, id))
+
+  // ---------- M4-3 游戏娱乐 ----------
+  ipcMain.handle('ent:listPlays', (_e, from?: string, to?: string) => ent.listPlays(db, from, to))
+  ipcMain.handle('ent:createPlay', (_e, input: ent.PlayInput) => ent.createPlay(db, input))
+  ipcMain.handle('ent:updatePlay', (_e, id: number, patch: ent.PlayPatch) => ent.updatePlay(db, id, patch))
+  ipcMain.handle('ent:deletePlay', (_e, id: number) => ent.deletePlay(db, id))
+
+  ipcMain.handle('ent:listWishlist', () => ent.listWishlist(db))
+  ipcMain.handle('ent:createWish', (_e, input: ent.WishInput) => ent.createWish(db, input))
+  ipcMain.handle('ent:updateWish', (_e, id: number, patch: ent.WishPatch) => ent.updateWish(db, id, patch))
+  ipcMain.handle('ent:deleteWish', (_e, id: number) => ent.deleteWish(db, id))
+
+  ipcMain.handle('ent:listMedia', (_e, from?: string, to?: string) => ent.listMedia(db, from, to))
+  ipcMain.handle('ent:createMedia', (_e, input: ent.MediaInput) => ent.createMedia(db, input))
+  ipcMain.handle('ent:updateMedia', (_e, id: number, patch: ent.MediaPatch) => ent.updateMedia(db, id, patch))
+  ipcMain.handle('ent:deleteMedia', (_e, id: number) => ent.deleteMedia(db, id))
 }
