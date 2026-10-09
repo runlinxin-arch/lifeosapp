@@ -1,4 +1,4 @@
-﻿// M4-2 饮食模块 端到端验收（对应 PRD 4.6 / 8.7.2 / 界面 L109）
+// M4-2 饮食模块 端到端验收（对应 PRD 4.6 / 8.7.2 / 界面 L109）
 // 运行前置：npm run build 后，应用以 --remote-debugging-port=9222 启动，且数据目录由 LIFEOS_DATA_DIR 指向临时目录
 // 安全闸门：本脚本会清理数据。必须由验收 runner 指定临时数据目录（LIFEOS_DATA_DIR），
 // 否则可能清掉真实用户数据（%APPDATA%\LifeOS\app.db）。见 scripts/acceptance/m4-all.ps1
@@ -164,7 +164,9 @@ await sleep(400)
 await evaluate(`window.__set(document.querySelector('[data-food-calories="1"]'), 265); true`)
 await sleep(200)
 await evaluate(`document.querySelector('[data-action="save-lunch"]')?.click(); true`)
-await sleep(900)
+// 等合计按新数值重算（替代固定 sleep）
+const kcalUpdated = await waitFor(`document.querySelector('[data-nutrition-calories]')?.getAttribute('data-nutrition-calories') === '615'`, 8000)
+if (!kcalUpdated) console.log('  [diag] 覆盖保存后合计未在 8s 内变为 615')
 const todayMeals = await evaluate(`(async () => (await window.lifeos.diet.listMeals('${D.today}', '${D.today}')).length)()`)
 const kcalAfter = await attr('[data-nutrition-calories]', 'data-nutrition-calories')
 check('同日同餐再次保存是覆盖（当天记录数仍为 3）', todayMeals === 3, `当天记录数=${todayMeals}`)
@@ -189,14 +191,23 @@ check('点击横条某天可切换查看日期',
   (await attr('[data-diet-date]', 'data-diet-date')) === D.tomorrow,
   await attr('[data-diet-date]', 'data-diet-date'))
 
-await evaluate(`(async () => {
+// 聚焦 + 写入（分成两次 CDP 往返，贴近真人"先点进输入框再打字"）
+const focused = await evaluate(`(() => {
   const el = document.querySelector('[data-plan-input="lunch"]');
-  el.focus(); window.__set(el, '鸡胸沙拉 + 糙米');
-  await new Promise(r => setTimeout(r, 150));
-  el.blur();
-  return true;
+  el.focus();
+  window.__set(el, '鸡胸沙拉 + 糙米');
+  return { active: document.activeElement === el, value: el.value };
 })()`)
-await sleep(900)
+check('计划输入框可聚焦并写入', focused.active === true && focused.value === '鸡胸沙拉 + 糙米', JSON.stringify(focused))
+
+// 失焦保存：等待状态真正落到界面（固定 sleep 在机器繁忙时会假失败）
+const t0 = Date.now()
+await evaluate(`document.querySelector('[data-plan-input="lunch"]')?.blur(); true`)
+const planSaved = await waitFor(`document.querySelector('[data-plan-count]')?.getAttribute('data-plan-count') === '1'`, 6000)
+const saveMs = Date.now() - t0
+const dbPlanCount = await evaluate(`(async () => (await window.lifeos.diet.listPlans('${D.tomorrow}', '${D.tomorrow}')).length)()`)
+console.log(`  [diag] 失焦保存：界面生效=${planSaved} 耗时=${saveMs}ms 库中计划数=${dbPlanCount}`)
+
 const planAndCell = await evaluate(`({
   count: document.querySelector('[data-plan-count]')?.getAttribute('data-plan-count'),
   cell: document.querySelector('[data-plan-day="${D.tomorrow}"]')?.getAttribute('data-day-planned'),
@@ -226,7 +237,8 @@ await evaluate(HELPERS)
 await evaluate(`__goto('饮食'); true`)
 await sleep(1500)
 await evaluate(`document.querySelector('[data-plan-day="${D.tomorrow}"]')?.click(); true`)
-await sleep(800)
+const planRestored = await waitFor(`document.querySelector('[data-plan-input="lunch"]')?.value === '鸡胸沙拉 + 糙米'`, 8000)
+if (!planRestored) console.log('  [diag] 刷新后未在 8s 内读回计划文本')
 const persisted = await evaluate(`({
   input: document.querySelector('[data-plan-input="lunch"]')?.value,
   count: document.querySelector('[data-plan-count]')?.getAttribute('data-plan-count')
@@ -241,7 +253,9 @@ await evaluate(`(async () => {
   el.blur();
   return true;
 })()`)
-await sleep(900)
+// 等计划真正被删除（替代固定 sleep）
+const planCleared = await waitFor(`(async () => (await window.lifeos.diet.listPlans('${D.tomorrow}', '${D.tomorrow}')).length === 0)()`, 8000)
+if (!planCleared) console.log('  [diag] 清空后计划未在 8s 内删除')
 const afterClear = await evaluate(`(async () => ({
   count: document.querySelector('[data-plan-count]')?.getAttribute('data-plan-count'),
   cell: document.querySelector('[data-plan-day="${D.tomorrow}"]')?.getAttribute('data-day-planned'),

@@ -1,4 +1,4 @@
-﻿// M4-3 游戏娱乐模块 端到端验收（对应 PRD 4.7 / 8.7.3 / 界面 L111 + 用户增强要求）
+// M4-3 游戏娱乐模块 端到端验收（对应 PRD 4.7 / 8.7.3 / 界面 L111 + 用户增强要求）
 // 增强点：① 游玩记录支持本周/本月/全部区间切换 ② 支持按游戏筛选 ③ 影视与书籍分开为两个页签
 // 运行前置：npm run build 后，应用以 --remote-debugging-port=9222 启动，且数据目录由 LIFEOS_DATA_DIR 指向临时目录
 // 安全闸门：本脚本会清理数据。必须由验收 runner 指定临时数据目录（LIFEOS_DATA_DIR），
@@ -129,6 +129,7 @@ check('切到「书籍」页签（**类型下拉只有书籍**）',
 await evaluate(`document.querySelector('[data-tab="plays"]')?.click(); true`)
 await sleep(400)
 const addPlay = async (game, minutes, date) => {
+  const before = await evaluate(`(async () => (await window.lifeos.ent.listPlays()).length)()`)
   await evaluate(`(async () => {
     window.__set(document.querySelector('[data-play-game]'), '${game}');
     window.__set(document.querySelector('[data-play-date]'), '${date}');
@@ -137,7 +138,9 @@ const addPlay = async (game, minutes, date) => {
   })()`)
   await sleep(200)
   await evaluate(`document.querySelector('[data-action="add-play"]')?.click(); true`)
-  await sleep(800)
+  // 等这条记录真正落库（替代固定 sleep）
+  const ok = await waitFor(`(async () => (await window.lifeos.ent.listPlays()).length === ${before + 1})()`, 8000)
+  if (!ok) console.log(`  [diag] 游玩记录 ${game} 未在 8s 内落库`)
 }
 await addPlay('老头环', 90, D.today)
 await addPlay('老头环', 30, D.today)
@@ -206,7 +209,9 @@ await sleep(500)
 // ============ 4. 删除一条 → 聚合同步 ============
 const eldenRowId = await evaluate(`[...document.querySelectorAll('[data-play-row]')].find(e => e.innerText.includes('老头环'))?.getAttribute('data-play-row')`)
 await evaluate(`document.querySelector('[data-action="del-play-${eldenRowId}"]')?.click(); true`)
-await sleep(900)
+// 等删除真正生效（替代固定 sleep）
+const deleted = await waitFor(`(async () => (await window.lifeos.ent.listPlays()).length === 3)()`, 8000)
+if (!deleted) console.log('  [diag] 删除后记录数未在 8s 内变为 3')
 const afterDel = await evaluate(`({
   total: document.querySelector('[data-game-summary="老头环"]')?.getAttribute('data-total-minutes'),
   sessions: document.querySelector('[data-game-summary="老头环"]')?.getAttribute('data-sessions'),
@@ -220,6 +225,7 @@ check('删除一条后聚合同步（老头环 120 → 90，总时长 480 → 45
 await evaluate(`document.querySelector('[data-tab="screen"]')?.click(); true`)
 await sleep(400)
 const addMedia = async (title, type, status, star, comment) => {
+  const before = await evaluate(`(async () => (await window.lifeos.ent.listMedia()).length)()`)
   await evaluate(`(async () => {
     window.__set(document.querySelector('[data-media-title]'), '${title}');
     window.__set(document.querySelector('[data-media-comment]'), '${comment}');
@@ -234,7 +240,9 @@ const addMedia = async (title, type, status, star, comment) => {
     await sleep(250)
   }
   await evaluate(`document.querySelector('[data-action="add-media"]')?.click(); true`)
-  await sleep(900)
+  // 等这条影视书真正落库（替代固定 sleep）
+  const ok = await waitFor(`(async () => (await window.lifeos.ent.listMedia()).length === ${before + 1})()`, 8000)
+  if (!ok) console.log(`  [diag] 影视书 ${title} 未在 8s 内落库`)
 }
 await addMedia('沙丘 2', 'movie', 'done', 4, '视听盛宴')
 await addMedia('怪奇物语', 'series', 'doing', 5, '第五季')
@@ -288,7 +296,12 @@ check('回到影视页签，书籍没有混进来（仍为 2 条）', screenUnch
 // ============ 8. 星级再点清零 ============
 const duneId = await evaluate(`(async () => (await window.lifeos.ent.listMedia()).find(r => r.title === '沙丘 2').id)()`)
 await evaluate(`document.querySelector('[data-star-rating="row-${duneId}"] [data-star="4"]')?.click(); true`)
-await sleep(900)
+// 等评分真正清零（替代固定 sleep）
+const starCleared = await waitFor(`(async () => {
+  const rows = await window.lifeos.ent.listMedia();
+  return rows.find(r => r.id === ${duneId})?.rating === 0;
+})()`, 8000)
+if (!starCleared) console.log('  [diag] 评分未在 8s 内清零')
 check('再点同一颗星清零（回到未评分 0）',
   (await attr(`[data-media-row="${duneId}"] [data-star-rating]`, 'data-rating')) === '0')
 

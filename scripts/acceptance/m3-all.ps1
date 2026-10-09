@@ -34,6 +34,19 @@ $stages = @(
 
 $summary = @()
 
+# Pre-flight: syntax-check every stage script, so a broken script fails loudly
+# instead of silently contributing 0/0 to the total.
+foreach ($s in $stages) {
+  & node --check $s.script 2>&1 | Out-Null
+  if ($LASTEXITCODE -ne 0) {
+    Write-Output "SYNTAX ERROR in $($s.script) -- aborting before touching anything."
+    & node --check $s.script
+    exit 1
+  }
+}
+Write-Output "PRE-FLIGHT: all stage scripts parse OK"
+Write-Output ""
+
 foreach ($s in $stages) {
   Write-Output "================================================================="
   Write-Output "  STAGE: $($s.name)"
@@ -70,7 +83,12 @@ Write-Output "================================================================="
 $summary | Format-Table -AutoSize
 $tp = ($summary | Measure-Object -Property Pass -Sum).Sum
 $tt = ($summary | Measure-Object -Property Total -Sum).Sum
-Write-Output "TOTAL: $tp / $tt"
+$crashed = ($summary | Where-Object { $_.Pass -lt 0 }).Count
+if ($crashed -gt 0) {
+  Write-Output "TOTAL: INVALID -- $crashed stage(s) produced no summary (crashed / refused to run). Do NOT read this as a pass."
+} else {
+  Write-Output "TOTAL: $tp / $tt"
+}
 Write-Output ""
 
 $realDbAfter = Get-DbFingerprint $realDb

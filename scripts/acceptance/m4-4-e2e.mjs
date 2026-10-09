@@ -1,4 +1,4 @@
-﻿// M4-4「今天」页卡片接线 端到端验收（对应 PRD 8.3.4 / L84–L89）
+// M4-4「今天」页卡片接线 端到端验收（对应 PRD 8.3.4 / L84–L89）
 // 运行前置：npm run build 后，应用以 --remote-debugging-port=9222 启动，且数据目录由 LIFEOS_DATA_DIR 指向临时目录
 // 安全闸门：本脚本会清理数据。必须由验收 runner 指定临时数据目录（LIFEOS_DATA_DIR），
 // 否则可能清掉真实用户数据（%APPDATA%\LifeOS\app.db）。见 scripts/acceptance/m4-all.ps1
@@ -123,6 +123,9 @@ await evaluate(`(async () => {
 })()`)
 await backToToday()
 
+// 卡片数据来自按需加载的 store，等它真正反映播种结果（替代"进页就读"）
+const fitReady = await waitFor(`__cardAttr('fitness', '[data-fitness-week-count]', 'data-fitness-week-count') === '${expectedWeekCount}'`, 8000)
+if (!fitReady) console.log('  [diag] 健身卡片本周次数未在 8s 内变为 ' + expectedWeekCount)
 const fitCard = await evaluate(`({
   planned: __cardAttr('fitness', '[data-fitness-planned]', 'data-fitness-planned'),
   week: __cardAttr('fitness', '[data-fitness-week-count]', 'data-fitness-week-count'),
@@ -142,6 +145,9 @@ await evaluate(`(async () => {
 })()`)
 await backToToday()
 
+// 等饮食卡片反映两餐记录（替代"进页就读"）
+const dietReady = await waitFor(`__cardAttr('diet', '[data-diet-recorded]', 'data-diet-recorded') === '2'`, 8000)
+if (!dietReady) console.log('  [diag] 饮食卡片已记录餐数未在 8s 内变为 2')
 const dietCard = await evaluate(`({
   recorded: __cardAttr('diet', '[data-diet-recorded]', 'data-diet-recorded'),
   kcal: __cardAttr('diet', '[data-diet-calories]', 'data-diet-calories'),
@@ -179,6 +185,9 @@ await evaluate(`(async () => {
   return true;
 })()`)
 await backToToday()
+// 等卡片跟上新增的晚餐
+const afterReady = await waitFor(`__cardAttr('diet', '[data-diet-recorded]', 'data-diet-recorded') === '3'`, 8000)
+if (!afterReady) console.log('  [diag] 新增晚餐后卡片未在 8s 内变为 3/4')
 const after = await evaluate(`({
   recorded: __cardAttr('diet', '[data-diet-recorded]', 'data-diet-recorded'),
   kcal: __cardAttr('diet', '[data-diet-calories]', 'data-diet-calories'),

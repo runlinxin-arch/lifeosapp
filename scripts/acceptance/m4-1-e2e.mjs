@@ -1,4 +1,4 @@
-﻿// M4-1 健身模块 端到端验收（对应 PRD 4.5 / 8.7.1）
+// M4-1 健身模块 端到端验收（对应 PRD 4.5 / 8.7.1）
 // 运行前置：npm run build 后，应用以 --remote-debugging-port=9222 启动，且数据目录由 LIFEOS_DATA_DIR 指向临时目录
 // 安全闸门：本脚本会清理数据。必须由验收 runner 指定临时数据目录（LIFEOS_DATA_DIR），
 // 否则可能清掉真实用户数据（%APPDATA%\LifeOS\app.db）。见 scripts/acceptance/m4-all.ps1
@@ -108,6 +108,8 @@ check('新建训练计划后自动选中并进入编排', created)
 check('一周七格编排（周一–周日）', dueDays === 7, `${dueDays} 格`)
 
 // ============ 2. 编排一周安排：周一 = 胸，今天 = 腿 ============
+// 保存是「失焦 → IPC → 落库 → 刷新」的异步链，必须等状态真正落库，
+// 固定 sleep 在机器繁忙时会假失败（本步骤曾偶发 FAIL）
 const setDay = async (key, value) => {
   await evaluate(`(async () => {
     const el = document.querySelector('[data-plan-day="${key}"]');
@@ -116,7 +118,11 @@ const setDay = async (key, value) => {
     el.blur();
     return true;
   })()`)
-  await sleep(500)
+  const saved = await waitFor(`(async () => {
+    const plans = await window.lifeos.fit.listPlans();
+    return plans[0]?.schedule?.[${JSON.stringify(key)}] === ${JSON.stringify(value)};
+  })()`, 8000)
+  if (!saved) console.log(`  [diag] 第 ${key} 天（${value}）未在 8s 内落库`)
 }
 await setDay('1', '胸')
 await setDay(D.iso, '腿')
@@ -177,7 +183,9 @@ await waitFor(`!!document.querySelector('[data-item-weight="0"]')`)
 await evaluate(`window.__set(document.querySelector('[data-item-weight="0"]'), 50); true`)
 await sleep(200)
 await evaluate(`document.querySelector('[data-action="submit-workout"]')?.click(); true`)
-await sleep(800)
+// 等容量真正按新重量重算（替代固定 sleep）
+const updated = await waitFor(`document.querySelector('[data-stat-volume]')?.getAttribute('data-stat-volume') === '4100'`, 8000)
+if (!updated) console.log('  [diag] 更新后的周容量未在 8s 内变为 4100')
 const todayLogs = await evaluate(`(async () => (await window.lifeos.fit.listLogs('${D.today}', '${D.today}')).length)()`)
 const volume2 = await evaluate(`__stat('volume')`)
 check('同一天再次打卡是更新（当天记录数仍为 1）', todayLogs === 1, `今日记录数=${todayLogs}`)
@@ -216,7 +224,12 @@ const addMetric = async (date, weight, fat) => {
   })()`)
   await sleep(250)
   await evaluate(`document.querySelector('[data-action="submit-metric"]')?.click(); true`)
-  await sleep(800)
+  // 等这条身体数据真正落库（替代固定 sleep）
+  const ok = await waitFor(`(async () => {
+    const ms = await window.lifeos.fit.listMetrics();
+    return ms.some(m => m.date === '${date}' && m.weight === ${weight});
+  })()`, 8000)
+  if (!ok) console.log(`  [diag] 身体数据 ${date}=${weight} 未在 8s 内落库`)
 }
 await addMetric(D.before3, 71.2, 18.4)
 await addMetric(D.today, 70.5, 17.9)
