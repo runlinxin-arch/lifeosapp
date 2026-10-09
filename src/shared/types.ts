@@ -424,3 +424,68 @@ export interface MealPlanInput {
   type: MealType
   content: string
 }
+
+// ---------- M4-3 游戏娱乐 ----------
+
+/** 一次游玩记录（日期 + 时长），同一游戏可有多条 */
+export interface Play {
+  id: number
+  game: string
+  date: string
+  /** 时长（分钟），1–1440 整数 */
+  minutes: number
+  created_at: string
+  updated_at: string
+}
+
+export interface PlayInput {
+  game: string
+  date: string
+  minutes: number
+}
+export type PlayPatch = Partial<PlayInput>
+
+/** 愿望单条目 */
+export interface WishItem {
+  id: number
+  name: string
+  platform: string
+  priority: Priority
+  created_at: string
+  updated_at: string
+}
+
+export interface WishInput {
+  name: string
+  platform?: string
+  priority?: Priority
+}
+export type WishPatch = Partial<WishInput>
+
+/** 影视书类型：电影 / 剧集 / 书籍 */
+export type MediaType = 'movie' | 'series' | 'book'
+/** 影视书状态：想看 / 在看 / 看完 */
+export type MediaStatus = 'planned' | 'doing' | 'done'
+
+export interface Media {
+  id: number
+  title: string
+  type: MediaType
+  status: MediaStatus
+  /** 五星评分，0 表示未评分 */
+  rating: number
+  comment: string
+  date: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MediaInput {
+  title: string
+  type: MediaType
+  date: string
+  status?: MediaStatus
+  rating?: number
+  comment?: string
+}
+export type MediaPatch = Partial<MediaInput>

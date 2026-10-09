@@ -369,3 +369,49 @@ describe('饮食模块迁移 v7', () => {
     db.close()
   })
 })
+
+describe('游戏娱乐模块迁移 v8', () => {
+  it('新库含三张游戏娱乐表', () => {
+    const db = openDb(dbFile)
+    expect(version(db)).toBe(LATEST_VERSION)
+    expect(columns(db, 'plays')).toEqual(['id', 'game', 'date', 'minutes', 'created_at', 'updated_at'])
+    expect(columns(db, 'wishlist')).toEqual(['id', 'name', 'platform', 'priority', 'created_at', 'updated_at'])
+    expect(columns(db, 'media')).toContain('rating')
+    expect(columns(db, 'media')).toContain('comment')
+    db.close()
+  })
+
+  it('v7 老库能平滑升级到 v8 且饮食数据保留', () => {
+    const raw = openDb(dbFile)
+    raw.exec('DROP TABLE plays')
+    raw.exec('DROP TABLE wishlist')
+    raw.exec('DROP TABLE media')
+    raw.exec('PRAGMA user_version = 7')
+    raw.prepare("INSERT INTO meals (date, type) VALUES ('2026-10-09', 'lunch')").run()
+    raw.close()
+
+    const db = openDb(dbFile)
+    expect(version(db)).toBe(LATEST_VERSION)
+    expect(columns(db, 'plays')).toContain('minutes')
+    expect(db.prepare('SELECT COUNT(*) c FROM meals').get()).toEqual({ c: 1 })
+    db.close()
+  })
+
+  it('默认值正确（priority=mid / status=planned / rating=0 / comment 空）', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO wishlist (name) VALUES ('丝之歌')").run()
+    expect(db.prepare('SELECT priority, platform FROM wishlist').get()).toEqual({ priority: 'mid', platform: '' })
+    db.prepare("INSERT INTO media (title, type, date) VALUES ('沙丘', 'movie', '2026-10-09')").run()
+    expect(db.prepare('SELECT status, rating, comment FROM media').get())
+      .toEqual({ status: 'planned', rating: 0, comment: '' })
+    db.close()
+  })
+
+  it('同一天同一游戏可有多条游玩记录', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO plays (game, date, minutes) VALUES ('老头环', '2026-10-09', 90)").run()
+    db.prepare("INSERT INTO plays (game, date, minutes) VALUES ('老头环', '2026-10-09', 30)").run()
+    expect(db.prepare('SELECT COUNT(*) c FROM plays').get()).toEqual({ c: 2 })
+    db.close()
+  })
+})

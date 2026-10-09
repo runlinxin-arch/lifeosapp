@@ -280,6 +280,46 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_meal_plans_date ON meal_plans(date);
       `)
     }
+  },
+  {
+    // v8 —— M4-3：游戏娱乐（游玩记录 / 愿望单 / 影视书）
+    version: 8,
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS plays (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          game TEXT NOT NULL,
+          date TEXT NOT NULL,
+          minutes INTEGER NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_plays_game ON plays(game);
+        CREATE INDEX IF NOT EXISTS idx_plays_date ON plays(date);
+
+        CREATE TABLE IF NOT EXISTS wishlist (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          platform TEXT NOT NULL DEFAULT '',
+          priority TEXT NOT NULL DEFAULT 'mid',
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+
+        CREATE TABLE IF NOT EXISTS media (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          type TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'planned',
+          rating INTEGER NOT NULL DEFAULT 0,
+          comment TEXT NOT NULL DEFAULT '',
+          date TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_media_date ON media(date);
+      `)
+    }
   }
 ]
 
