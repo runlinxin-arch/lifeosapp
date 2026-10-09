@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { minutesByProjectInRange, projectWeekMinutes } from '../src/shared/devStats'
+import { minutesByProjectInRange, minutesByTask, projectWeekMinutes } from '../src/shared/devStats'
 import type { DevSession, DevTask } from '../src/shared/types'
 
 const task = (id: number, projectId: number): DevTask => ({
@@ -59,5 +59,21 @@ describe('projectWeekMinutes', () => {
 
   it('无记录的项目返回 0', () => {
     expect(projectWeekMinutes([], tasks, 10, '2026-10-05', '2026-10-11')).toBe(0)
+  })
+})
+
+describe('minutesByTask', () => {
+  it('同一任务多条累加', () => {
+    const m = minutesByTask([ses(1, '2026-10-09 09:00', 30), ses(1, '2026-10-09 10:00', 45), ses(2, '2026-10-09 11:00', 60)])
+    expect(m.get(1)).toBe(75)
+    expect(m.get(2)).toBe(60)
+  })
+
+  it('没有记录的任务不出现在 Map 里', () => {
+    expect(minutesByTask([ses(1, '2026-10-09 09:00', 30)]).get(2)).toBeUndefined()
+  })
+
+  it('空输入返回空 Map', () => {
+    expect(minutesByTask([]).size).toBe(0)
   })
 })

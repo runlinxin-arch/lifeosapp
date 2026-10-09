@@ -35,3 +35,10 @@ export function projectWeekMinutes(
 ): number {
   return minutesByProjectInRange(sessions, tasks, from, to).get(projectId) ?? 0
 }
+
+/** 按任务汇总全部时长（看板卡片显示已计时长用） */
+export function minutesByTask(sessions: DevSession[]): Map<number, number> {
+  const out = new Map<number, number>()
+  for (const s of sessions) out.set(s.task_id, (out.get(s.task_id) ?? 0) + s.minutes)
+  return out
+}
