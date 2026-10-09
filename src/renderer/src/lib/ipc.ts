@@ -75,6 +75,8 @@ interface LifeosApi {
     listProjectStats(): Promise<[number, ProjectStats][]>
 
     listTasks(projectId: number): Promise<DevTask[]>
+    /** 全部项目的任务，供本周计时做 task → project 映射 */
+    listAllTasks(): Promise<DevTask[]>
     createTask(input: DevTaskInput): Promise<DevTask>
     updateTask(id: number, patch: DevTaskPatch): Promise<DevTask>
     removeTask(id: number): Promise<void>

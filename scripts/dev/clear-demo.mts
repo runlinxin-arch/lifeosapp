@@ -51,6 +51,16 @@ const s = db.prepare(`
 // 学习模块的验收数据（笔记与学习记录由外键级联删除）
 const learn = db.prepare("DELETE FROM learn_items WHERE title LIKE '【演示】%' OR title LIKE '【验收】%'").run()
 
+// 开发模块：项目（看板任务/Bug/计时由外键级联删除；技术笔记因 SET NULL 会保留，需单独清）
+const projects = db.prepare("DELETE FROM projects WHERE name LIKE '【演示】%' OR name LIKE '【验收】%'").run()
+const snippets = db.prepare("DELETE FROM snippets WHERE title LIKE '【演示】%' OR title LIKE '【验收】%'").run()
+const techNotes = db.prepare("DELETE FROM tech_notes WHERE title LIKE '【演示】%' OR title LIKE '【验收】%'").run()
+// 项目被删后技术笔记会解绑，把验收产生的孤儿笔记一并清掉
+const orphanNotes = db.prepare(`
+  DELETE FROM tech_notes
+  WHERE project_id IS NULL AND (title LIKE '%验收%' OR title LIKE '%演示%')
+`).run()
+
 const after = counts()
 
 console.log('删除明细:')
@@ -59,6 +69,9 @@ console.log(`  events     ${e.changes} 行`)
 console.log(`  long_tasks ${l.changes} 行`)
 console.log(`  日程汇入残留 ${orphan.changes} 行`)
 console.log(`  learn_items ${learn.changes} 行`)
+console.log(`  projects   ${projects.changes} 行`)
+console.log(`  snippets   ${snippets.changes} 行`)
+console.log(`  tech_notes ${techNotes.changes + orphanNotes.changes} 行`)
 console.log(`  settings   ${s.changes} 行（复位为默认）`)
 console.log('')
 console.log('清理前:', JSON.stringify(before))

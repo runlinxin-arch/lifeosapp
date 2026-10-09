@@ -71,6 +71,7 @@ export function registerIpc(db: DatabaseSync): void {
   ipcMain.handle('dev:listProjectStats', () => [...dev.listProjectStats(db).entries()])
 
   ipcMain.handle('dev:listTasks', (_e, projectId: number) => dev.listDevTasks(db, projectId))
+  ipcMain.handle('dev:listAllTasks', () => dev.listAllDevTasks(db))
   ipcMain.handle('dev:createTask', (_e, input: dev.DevTaskInput) => dev.createDevTask(db, input))
   ipcMain.handle('dev:updateTask', (_e, id: number, patch: dev.DevTaskPatch) => dev.updateDevTask(db, id, patch))
   ipcMain.handle('dev:deleteTask', (_e, id: number) => dev.deleteDevTask(db, id))

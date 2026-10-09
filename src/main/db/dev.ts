@@ -188,6 +188,11 @@ export function listDevTasks(db: DatabaseSync, projectId: number): DevTask[] {
       || a.position - b.position || a.id - b.id)
 }
 
+/** 全部项目的任务，供渲染端做 task → project 映射（本周计时汇总用） */
+export function listAllDevTasks(db: DatabaseSync): DevTask[] {
+  return db.prepare('SELECT * FROM dev_tasks').all().map(asDevTask)
+}
+
 export function getDevTask(db: DatabaseSync, id: number): DevTask | null {
   const row = db.prepare('SELECT * FROM dev_tasks WHERE id = ?').get(id)
   return row ? asDevTask(row) : null

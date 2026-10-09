@@ -54,6 +54,7 @@ const api = {
     listProjectStats: (): Promise<unknown> => ipcRenderer.invoke('dev:listProjectStats'),
 
     listTasks: (projectId: number): Promise<unknown> => ipcRenderer.invoke('dev:listTasks', projectId),
+    listAllTasks: (): Promise<unknown> => ipcRenderer.invoke('dev:listAllTasks'),
     createTask: (input: unknown): Promise<unknown> => ipcRenderer.invoke('dev:createTask', input),
     updateTask: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('dev:updateTask', id, patch),
     removeTask: (id: number): Promise<unknown> => ipcRenderer.invoke('dev:deleteTask', id),
