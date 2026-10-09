@@ -82,19 +82,19 @@ const cleaned = await evaluate(`(async () => {
   const api = window.lifeos;
   let n = 0;
   for (const p of await api.ent.listPlays()) { await api.ent.removePlay(p.id); n++ }
-  for (const w of await api.ent.listWishlist()) { await api.ent.removeWish(w.id); n++ }
   for (const m of await api.ent.listMedia()) { await api.ent.removeMedia(m.id); n++ }
   return n;
 })()`)
 check('清空既有游戏娱乐数据（脚本可重复运行）', typeof cleaned === 'number', `清理 ${cleaned} 条`)
 
-// ============ 1. 进入页面 + 四个页签 ============
+// ============ 1. 进入页面 + 三个页签 ============
 await evaluate(`__goto('今天'); true`)
 await sleep(500)
 await evaluate(`__goto('游戏娱乐'); true`)
-await waitFor(`document.querySelectorAll('[data-tab]').length === 4`)
-check('侧边栏「游戏娱乐」可进入，**四个页签**（游玩记录 / 愿望单 / 影视 / 书籍）',
-  (await evaluate(`document.querySelectorAll('[data-tab]').length`)) === 4,
+await waitFor(`document.querySelectorAll('[data-tab]').length === 3`)
+check('侧边栏「游戏娱乐」可进入，**三个页签**（游玩记录 / 影视 / 书籍，愿望单已移除）',
+  (await evaluate(`document.querySelectorAll('[data-tab]').length`)) === 3 &&
+  (await evaluate(`!!document.querySelector('[data-tab="wishlist"]')`)) === false,
   await evaluate(`[...document.querySelectorAll('[data-tab]')].map(e => e.textContent).join(' / ')`))
 
 await evaluate(`document.querySelector('[data-tab="plays"]')?.click(); true`)
@@ -103,10 +103,6 @@ check('「游玩记录」页签可切换，空状态提示正常',
   (await attr('[data-tab="plays"]', 'data-tab-active')) === 'true' &&
   (await evaluate(`__text().includes('还没有游玩记录')`)))
 
-await evaluate(`document.querySelector('[data-tab="wishlist"]')?.click(); true`)
-await sleep(400)
-check('切到「愿望单」页签', (await attr('[data-tab="wishlist"]', 'data-tab-active')) === 'true' &&
-  (await evaluate(`__text().includes('愿望单还是空的')`)))
 await evaluate(`document.querySelector('[data-tab="screen"]')?.click(); true`)
 await sleep(400)
 check('切到「影视」页签（三个状态分组齐全，且只允许电影/剧集）',
@@ -212,30 +208,7 @@ check('删除一条后聚合同步（老头环 120 → 90，总时长 480 → 45
   afterDel.total === '90' && afterDel.sessions === '1' && afterDel.range === String(expectedAll - 30),
   JSON.stringify(afterDel))
 
-// ============ 5. 愿望单优先级排序 ============
-await evaluate(`document.querySelector('[data-tab="wishlist"]')?.click(); true`)
-await sleep(400)
-const addWish = async (name, platform, priority) => {
-  await evaluate(`(async () => {
-    window.__set(document.querySelector('[data-wish-name]'), '${name}');
-    window.__set(document.querySelector('[data-wish-platform]'), '${platform}');
-    window.__pick('[data-wish-priority]', '${priority}');
-    return true;
-  })()`)
-  await sleep(200)
-  await evaluate(`document.querySelector('[data-action="add-wish"]')?.click(); true`)
-  await sleep(800)
-}
-await addWish('空洞骑士：丝之歌', 'PC', 'low')
-await addWish('塞尔达传说', 'Switch', 'high')
-await addWish('黑神话：悟空', 'PS5', 'mid')
-const wishOrder = await evaluate(`[...document.querySelectorAll('[data-wish-row]')].map(e => e.getAttribute('data-wish-row') + ':' + e.getAttribute('data-priority'))`)
-check('愿望单按优先级排序（高 → 中 → 低）',
-  JSON.stringify(wishOrder) === JSON.stringify(['塞尔达传说:high', '黑神话：悟空:mid', '空洞骑士：丝之歌:low']),
-  JSON.stringify(wishOrder))
-await shot('38-m4-ent-wishlist')
-
-// ============ 6. 影视：电影 + 剧集 ============
+// ============ 5. 影视：电影 + 剧集 ============
 await evaluate(`document.querySelector('[data-tab="screen"]')?.click(); true`)
 await sleep(400)
 const addMedia = async (title, type, status, star, comment) => {
@@ -320,14 +293,13 @@ await evaluate(`__goto('游戏娱乐'); true`)
 await sleep(1200)
 const persisted = await evaluate(`(async () => ({
   plays: (await window.lifeos.ent.listPlays()).length,
-  wish: (await window.lifeos.ent.listWishlist()).length,
   media: (await window.lifeos.ent.listMedia()).length
 }))()`)
 await evaluate(`document.querySelector('[data-tab="book"]')?.click(); true`)
 await sleep(600)
 const persistedBook = await evaluate(`document.querySelector('[data-media-scope="book"] [data-media-total]')?.getAttribute('data-media-total')`)
-check('刷新后游玩/愿望单/影视书籍数据仍在，页签结构保持',
-  persisted.plays === 3 && persisted.wish === 3 && persisted.media === 3 && persistedBook === '1',
+check('刷新后游玩/影视书籍数据仍在，页签结构保持',
+  persisted.plays === 3 && persisted.media === 3 && persistedBook === '1',
   JSON.stringify({ ...persisted, book: persistedBook }))
 
 console.log('')

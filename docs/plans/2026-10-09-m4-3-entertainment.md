@@ -1,5 +1,12 @@
 # M4-3 游戏娱乐模块 Implementation Plan
 
+> **执行后的变更（2026-10-09，用户复核提出）**：
+> 1. **移除愿望单**（本计划 T1/T3/T4/T7 中的愿望单部分已废弃，表与 v8 迁移保留未动）
+> 2. 游玩记录增加**按周/月/全部区间切换**与**按游戏筛选**
+> 3. 影视书拆分为**影视**与**书籍**两个页签，页签从 3 个变为「游玩记录 | 影视 | 书籍」
+>
+> 以 [M4-3 验收记录](./2026-10-09-m4-3-acceptance.md) 为准（E2E 20/20）。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 交付「游戏娱乐」模块：游玩记录（日期 + 时长，按游戏自动聚合计总时长）、愿望单（游戏 + 优先级）、影视书（类型/状态/五星评分/短评），三页签界面。对应 PRD 4.7 与 8.7.3、界面 PRD L111、设计文档 §5.8 / §6.7 / §7.7。

@@ -9,6 +9,8 @@ $root = $PWD.Path
 $cleanSql = "DELETE FROM workout_logs; DELETE FROM workout_plans; DELETE FROM body_metrics;" +
             "DELETE FROM meals; DELETE FROM meal_plans;" +
             "DELETE FROM plays; DELETE FROM wishlist; DELETE FROM media;"
+# NOTE: wishlist table is legacy (feature removed on 2026-10-09 by user request).
+# The table and its v8 migration are kept untouched; this DELETE only clears E2E leftovers.
 
 $stages = @(
   @{ name = 'M4-1 fitness';       script = 'scripts\acceptance\m4-1-e2e.mjs' },
