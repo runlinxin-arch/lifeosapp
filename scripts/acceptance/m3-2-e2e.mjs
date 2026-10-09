@@ -179,6 +179,121 @@ const afterStop = await evaluate(`
 `)
 check('停止后记录时长且计时器消失', !afterStop.hasTimer && afterStop.cardText.includes('已计 1m'), afterStop.cardText)
 
+// ============ T9 Bug 页签 ============
+await evaluate(`
+  (() => { [...__right().querySelectorAll('button')].find(b => b.textContent.trim() === 'Bug')?.click(); return true; })()
+`)
+await sleep(800)
+const bugPanel = await evaluate(`__right().innerText`)
+check('Bug 页签渲染（含状态计数）', bugPanel.includes('未修') && bugPanel.includes('修复中') && bugPanel.includes('已修复'),
+  bugPanel.split('\n').slice(0, 4).join(' / '))
+
+// 新建 Bug（默认中优先级）
+await evaluate(`
+  (() => {
+    const input = __right().querySelector('input[placeholder*="记录一个 Bug"]');
+    __setInput(input, '【验收】崩溃 Bug');
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    return true;
+  })()
+`)
+await sleep(1500)
+const bugCreated = await evaluate(`__right().innerText.includes('【验收】崩溃 Bug')`)
+const bugRow = await evaluate(`
+  (() => {
+    const row = [...__right().querySelectorAll('div.bg-\\\\[var\\\\(--card\\\\)\\\\]')].find(d => d.innerText.includes('【验收】崩溃 Bug'));
+    return row ? row.innerText.replace(/\\n+/g, ' | ') : 'not-found';
+  })()
+`)
+check('新建 Bug 出现在列表', bugCreated, bugRow)
+
+// 状态流转：未修 → 修复中
+await evaluate(`
+  (() => {
+    const row = [...__right().querySelectorAll('div')].find(d => d.innerText && d.innerText.includes('【验收】崩溃 Bug') && d.querySelectorAll('button').length >= 4);
+    const btn = [...row.querySelectorAll('button')].find(b => b.textContent.trim() === '修复中');
+    btn.click();
+    return true;
+  })()
+`)
+await sleep(1500)
+const afterFixing = await evaluate(`
+  (() => { const m = __right().innerText.match(/未修 (\\d+)[\\s\\S]*?修复中 (\\d+)/); return m ? { open: +m[1], fixing: +m[2] } : null; })()
+`)
+check('Bug 状态流转到「修复中」', afterFixing && afterFixing.fixing === 1 && afterFixing.open === 0, JSON.stringify(afterFixing))
+
+// 状态流转：修复中 → 已修复
+await evaluate(`
+  (() => {
+    const row = [...__right().querySelectorAll('div')].find(d => d.innerText && d.innerText.includes('【验收】崩溃 Bug') && d.querySelectorAll('button').length >= 4);
+    const btn = [...row.querySelectorAll('button')].find(b => b.textContent.trim() === '已修复');
+    btn.click();
+    return true;
+  })()
+`)
+await sleep(1500)
+const afterFixed = await evaluate(`
+  (() => { const m = __right().innerText.match(/已修复 (\\d+)/); return m ? +m[1] : null; })()
+`)
+check('Bug 状态流转到「已修复」', afterFixed === 1, `已修复 ${afterFixed}`)
+
+// 未修 Bug 数在项目卡片上同步（新增一条未修后应变为 1）
+await evaluate(`
+  (() => {
+    const input = __right().querySelector('input[placeholder*="记录一个 Bug"]');
+    __setInput(input, '【验收】未修 Bug');
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    return true;
+  })()
+`)
+await sleep(1500)
+const cardBugs = await evaluate(`
+  (() => { const m = __left().innerText.match(/未修 Bug (\\d+)/); return m ? +m[1] : null; })()
+`)
+const tabBadge = await evaluate(`
+  (() => {
+    const tab = [...__right().querySelectorAll('button')].find(b => b.textContent.trim().startsWith('Bug'));
+    return tab ? tab.innerText.replace(/\\n/g, ' ') : 'not-found';
+  })()
+`)
+check('项目卡片与页签徽标同步未修数', cardBugs === 1 && tabBadge.includes('1'), `卡片=${cardBugs}, 页签="${tabBadge}"`)
+await shot('15-dev-bugs')
+
+// ============ T10 计时统计页签 ============
+await evaluate(`
+  (() => { [...__right().querySelectorAll('button')].find(b => b.textContent.trim() === '计时统计')?.click(); return true; })()
+`)
+await sleep(1200)
+const stats = await evaluate(`
+  (() => {
+    const t = __right().innerText;
+    const m = t.match(/项目累计\\s*\\n?\\s*([^\\n]+)/);
+    return { total: m ? m[1].trim() : null, hasTaskRow: t.includes('${T1}'), records: /计时记录\\s*\\n?\\s*(\\d+) 条/.exec(t)?.[1] };
+  })()
+`)
+check('计时统计：项目累计与任务汇总正确', stats.total === '1m' && stats.hasTaskRow && stats.records === '1',
+  JSON.stringify(stats))
+await shot('16-dev-timestats')
+
+// 删除一条计时记录 → 累计归零
+await evaluate(`
+  (() => {
+    const btn = [...__right().querySelectorAll('button')].find(b => b.title === '删除这条记录');
+    btn.click();
+    return true;
+  })()
+`)
+await sleep(1500)
+const afterDel = await evaluate(`
+  (() => {
+    const t = __right().innerText;
+    const m = t.match(/项目累计\\s*\\n?\\s*([^\\n]+)/);
+    const card = __left().innerText.match(/累计 ([^\\n]+)/);
+    return { total: m ? m[1].trim() : null, cardTotal: card ? card[1].trim() : null };
+  })()
+`)
+check('删除计时记录后项目累计归零且卡片同步', afterDel.total === '0m' && afterDel.cardTotal === '0m', JSON.stringify(afterDel))
+
 console.log('')
 console.log(`===== ${results.filter((r) => r.pass).length}/${results.length} 通过 =====`)
 for (const r of results.filter((x) => !x.pass)) console.log('  未通过: ' + r.label)

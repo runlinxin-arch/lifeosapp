@@ -7,6 +7,8 @@ import { weekDays } from '@shared/layout'
 import { projectWeekMinutes } from '@shared/devStats'
 import { formatDuration } from '@shared/duration'
 import { KanbanBoard } from './KanbanBoard'
+import { BugPanel } from './BugPanel'
+import { TimeStatsPanel } from './TimeStatsPanel'
 import { DevTimer } from './DevTimer'
 
 type Tab = 'board' | 'bugs' | 'time'
@@ -96,12 +98,8 @@ export function ProjectDetail({ projectId }: { projectId: number }): JSX.Element
       </div>
 
       {tab === 'board' && <KanbanBoard projectId={project.id} />}
-      {tab === 'bugs' && (
-        <div className="text-xs text-[var(--muted)]">Bug 页签将在 Task 9 实现</div>
-      )}
-      {tab === 'time' && (
-        <div className="text-xs text-[var(--muted)]">计时统计页签将在 Task 10 实现</div>
-      )}
+      {tab === 'bugs' && <BugPanel projectId={project.id} />}
+      {tab === 'time' && <TimeStatsPanel projectId={project.id} />}
     </div>
   )
 }
