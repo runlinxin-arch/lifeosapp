@@ -148,3 +148,115 @@ export interface LearnItemInput {
 }
 
 export type LearnItemPatch = Partial<LearnItemInput>
+
+// ---------- M3-2 开发 ----------
+
+export type ProjectStatus = 'planned' | 'in_progress' | 'paused' | 'done'
+export type DevColumn = 'todo' | 'doing' | 'done'
+export type BugStatus = 'open' | 'fixing' | 'fixed'
+
+export interface Project {
+  id: number
+  name: string
+  status: ProjectStatus
+  description: string
+  start_date: string | null
+  end_date: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DevTask {
+  id: number
+  project_id: number
+  title: string
+  column_name: DevColumn
+  position: number
+  priority: Priority
+  start_date: string | null
+  due_date: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Bug {
+  id: number
+  project_id: number
+  title: string
+  description: string
+  priority: Priority
+  status: BugStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface Snippet {
+  id: number
+  title: string
+  code: string
+  language: string
+  tags: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface TechNote {
+  id: number
+  title: string
+  content: string
+  project_id: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DevSession {
+  id: number
+  task_id: number
+  started_at: string
+  ended_at: string
+  minutes: number
+  created_at: string
+}
+
+export interface ProjectInput {
+  name: string
+  status?: ProjectStatus
+  description?: string
+  startDate?: string | null
+  endDate?: string | null
+}
+export type ProjectPatch = Partial<ProjectInput>
+
+export interface DevTaskInput {
+  projectId: number
+  title: string
+  column?: DevColumn
+  priority?: Priority
+  startDate?: string | null
+  dueDate?: string | null
+}
+export type DevTaskPatch = Partial<Omit<DevTaskInput, 'projectId'>>
+
+export interface BugInput {
+  projectId: number
+  title: string
+  description?: string
+  priority?: Priority
+  status?: BugStatus
+}
+export type BugPatch = Partial<Omit<BugInput, 'projectId'>>
+
+export interface SnippetInput {
+  title: string
+  code?: string
+  language?: string
+  tags?: string[]
+}
+export type SnippetPatch = Partial<SnippetInput>
+
+export interface TechNoteInput {
+  title: string
+  content?: string
+  projectId?: number | null
+}
+export type TechNotePatch = Partial<TechNoteInput>

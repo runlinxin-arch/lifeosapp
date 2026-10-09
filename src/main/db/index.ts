@@ -114,6 +114,80 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_learn_sessions_date ON learn_sessions(date);
       `)
     }
+  },
+  {
+    // v4 —— M3-2：开发模块六张表
+    version: 4,
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS projects (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned','in_progress','paused','done')),
+          description TEXT NOT NULL DEFAULT '',
+          start_date TEXT,
+          end_date TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+
+        CREATE TABLE IF NOT EXISTS dev_tasks (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          column_name TEXT NOT NULL DEFAULT 'todo' CHECK (column_name IN ('todo','doing','done')),
+          position INTEGER NOT NULL DEFAULT 0,
+          priority TEXT NOT NULL DEFAULT 'mid' CHECK (priority IN ('low','mid','high')),
+          start_date TEXT,
+          due_date TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_dev_tasks_board ON dev_tasks(project_id, column_name, position);
+
+        CREATE TABLE IF NOT EXISTS bugs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          priority TEXT NOT NULL DEFAULT 'mid' CHECK (priority IN ('low','mid','high')),
+          status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','fixing','fixed')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_bugs_project ON bugs(project_id, status);
+
+        CREATE TABLE IF NOT EXISTS snippets (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          code TEXT NOT NULL DEFAULT '',
+          language TEXT NOT NULL DEFAULT '',
+          tags TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+
+        CREATE TABLE IF NOT EXISTS tech_notes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          content TEXT NOT NULL DEFAULT '',
+          project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+
+        CREATE TABLE IF NOT EXISTS dev_sessions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          task_id INTEGER NOT NULL REFERENCES dev_tasks(id) ON DELETE CASCADE,
+          started_at TEXT NOT NULL,
+          ended_at TEXT NOT NULL,
+          minutes INTEGER NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_dev_sessions_task ON dev_sessions(task_id);
+      `)
+    }
   }
 ]
 

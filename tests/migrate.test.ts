@@ -85,7 +85,7 @@ describe('migrate', () => {
 describe('学习模块迁移 v3', () => {
   it('新库含三张学习表', () => {
     const db = openDb(dbFile)
-    expect(version(db)).toBe(3)
+    expect(version(db)).toBe(LATEST_VERSION)
     expect(columns(db, 'learn_items')).toEqual([
       'id', 'title', 'type', 'status', 'total_units', 'done_units',
       'start_date', 'end_date', 'created_at', 'updated_at'
@@ -106,7 +106,7 @@ describe('学习模块迁移 v3', () => {
     raw.close()
 
     const db = openDb(dbFile)
-    expect(version(db)).toBe(3)
+    expect(version(db)).toBe(LATEST_VERSION)
     expect(columns(db, 'learn_items')).toContain('total_units')
     expect(db.prepare('SELECT COUNT(*) c FROM tasks').get()).toEqual({ c: 1 })
     db.close()
@@ -129,6 +129,80 @@ describe('学习模块迁移 v3', () => {
     const db = openDb(dbFile)
     expect(() => db.prepare("INSERT INTO learn_items (title, type) VALUES ('x', 'video')").run()).toThrow()
     expect(() => db.prepare("INSERT INTO learn_items (title, status) VALUES ('x', 'paused')").run()).toThrow()
+    db.close()
+  })
+})
+
+describe('开发模块迁移 v4', () => {
+  it('新库含六张开发表', () => {
+    const db = openDb(dbFile)
+    expect(version(db)).toBe(LATEST_VERSION)
+    expect(columns(db, 'projects')).toContain('status')
+    expect(columns(db, 'dev_tasks')).toContain('column_name')
+    expect(columns(db, 'dev_tasks')).toContain('position')
+    expect(columns(db, 'dev_tasks')).toContain('priority')
+    expect(columns(db, 'bugs')).toContain('priority')
+    expect(columns(db, 'snippets')).toContain('tags')
+    expect(columns(db, 'tech_notes')).toContain('project_id')
+    expect(columns(db, 'dev_sessions')).toContain('minutes')
+    db.close()
+  })
+
+  it('v3 老库能平滑升级到 v4 且学习数据保留', () => {
+    const raw = openDb(dbFile)
+    raw.exec('DROP TABLE dev_sessions')
+    raw.exec('DROP TABLE tech_notes')
+    raw.exec('DROP TABLE snippets')
+    raw.exec('DROP TABLE bugs')
+    raw.exec('DROP TABLE dev_tasks')
+    raw.exec('DROP TABLE projects')
+    raw.exec('PRAGMA user_version = 3')
+    raw.prepare("INSERT INTO learn_items (title) VALUES ('M3-1 老学习项')").run()
+    raw.close()
+
+    const db = openDb(dbFile)
+    expect(version(db)).toBe(LATEST_VERSION)
+    expect(columns(db, 'projects')).toContain('status')
+    expect(db.prepare('SELECT COUNT(*) c FROM learn_items').get()).toEqual({ c: 1 })
+    db.close()
+  })
+
+  it('删除项目级联删掉其看板任务、Bug 与计时记录', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO projects (name) VALUES ('LifeOS')").run()
+    const pid = (db.prepare('SELECT id FROM projects').get() as { id: number }).id
+    db.prepare("INSERT INTO dev_tasks (project_id, title) VALUES (?, '看板任务')").run(pid)
+    const tid = (db.prepare('SELECT id FROM dev_tasks').get() as { id: number }).id
+    db.prepare("INSERT INTO bugs (project_id, title) VALUES (?, '一个 Bug')").run(pid)
+    db.prepare("INSERT INTO dev_sessions (task_id, started_at, ended_at, minutes) VALUES (?, '2026-10-09 09:00', '2026-10-09 10:00', 60)").run(tid)
+
+    db.prepare('DELETE FROM projects WHERE id = ?').run(pid)
+    expect(db.prepare('SELECT COUNT(*) c FROM dev_tasks').get()).toEqual({ c: 0 })
+    expect(db.prepare('SELECT COUNT(*) c FROM bugs').get()).toEqual({ c: 0 })
+    expect(db.prepare('SELECT COUNT(*) c FROM dev_sessions').get()).toEqual({ c: 0 })
+    db.close()
+  })
+
+  it('删除项目时技术笔记保留，只解除关联', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO projects (name) VALUES ('P')").run()
+    const pid = (db.prepare('SELECT id FROM projects').get() as { id: number }).id
+    db.prepare("INSERT INTO tech_notes (title, project_id) VALUES ('笔记', ?)").run(pid)
+
+    db.prepare('DELETE FROM projects WHERE id = ?').run(pid)
+    const note = db.prepare('SELECT title, project_id FROM tech_notes').get() as { title: string; project_id: number | null }
+    expect(note.title).toBe('笔记')
+    expect(note.project_id).toBeNull()
+    db.close()
+  })
+
+  it('看板列、项目状态、Bug 状态受 CHECK 约束', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO projects (name) VALUES ('P')").run()
+    const pid = (db.prepare('SELECT id FROM projects').get() as { id: number }).id
+    expect(() => db.prepare("INSERT INTO projects (name, status) VALUES ('X', 'archived')").run()).toThrow()
+    expect(() => db.prepare("INSERT INTO dev_tasks (project_id, title, column_name) VALUES (?, 'T', 'review')").run(pid)).toThrow()
+    expect(() => db.prepare("INSERT INTO bugs (project_id, title, status) VALUES (?, 'B', 'wontfix')").run(pid)).toThrow()
     db.close()
   })
 })
