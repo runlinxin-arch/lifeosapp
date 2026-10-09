@@ -4,7 +4,8 @@ import { useLongTasksStore } from '../../stores/longTasksStore'
 import { useLearnStore } from '../../stores/learnStore'
 import { useDevStore } from '../../stores/devStore'
 import { useDevTimerStore } from '../../stores/devTimerStore'
-import { todayStr, diffDays } from '../../lib/dates'
+import { diffDays } from '../../lib/dates'
+import { useToday } from '../../hooks/useToday'
 import { weekDays } from '@shared/layout'
 import { progressPercent, sumMinutes } from '@shared/learnStats'
 import { formatDuration } from '@shared/duration'
@@ -49,7 +50,8 @@ function ModuleCard(props: {
 
 export function TodayCards({ onNavigate }: { onNavigate?: (page: PageKey) => void }): JSX.Element {
   const { tasks } = useLongTasksStore()
-  const today = todayStr()
+  // 显式订阅「今天」：跨零点自动刷新，不依赖父组件重渲染的副作用
+  const today = useToday()
 
   // 今日卡片需要学习与开发的数据，进入「今天」页时按需加载一次
   const learnLoad = useLearnStore((s) => s.load)

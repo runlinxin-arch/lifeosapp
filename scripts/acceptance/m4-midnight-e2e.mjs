@@ -112,7 +112,46 @@ console.log(`已注入可控时钟（起点 ${BASE}，与真实时间同速）`)
 await evaluate(HELPERS)
 await waitFor(`!!document.querySelector('aside')`, 10000)
 
-// ---------- 3. 跨零点前：游玩记录表单默认日期 = D0 ----------
+// ---------- 3. 阶段一：跨零点前给 D0 播种，卡片归属应停在 D0 ----------
+const iso0 = await evaluate(`(() => { const g = new Date('${D0}T00:00:00').getDay(); return String(g === 0 ? 7 : g); })()`)
+await evaluate(`(async () => {
+  const api = window.lifeos;
+  await api.diet.upsertMeal({ date: '${D0}', type: 'breakfast', items: [{ name: '燕麦', calories: 150, protein: 5, carbs: 27, fat: 3 }] });
+  await api.fit.createPlan({ name: '【零点】计划', schedule: { '${iso0}': '腿' } });
+  await api.fit.createLog({ date: '${D0}', content: [] });
+  return true;
+})()`)
+// 卡片在挂载时按需加载，先离开再回来才会读到刚播种的数据（应用默认就停在今天页）
+await evaluate(`__goto('日程'); true`)
+await sleep(600)
+await evaluate(`__goto('今天'); true`)
+const cardReady = await waitFor(`(document.querySelector('[data-today-card="diet"]')?.querySelector('[data-diet-recorded]')?.getAttribute('data-diet-recorded')) === '1'`, 8000)
+const cardBefore = await evaluate(`({
+  recorded: document.querySelector('[data-diet-recorded]')?.getAttribute('data-diet-recorded'),
+  kcal: document.querySelector('[data-diet-calories]')?.getAttribute('data-diet-calories'),
+  planned: document.querySelector('[data-fitness-planned]')?.getAttribute('data-fitness-planned')
+})`)
+check('跨零点前：卡片归属于 D0（已记录 1 餐 / 150 kcal / 今天该练「腿」）',
+  cardReady && cardBefore.recorded === '1' && cardBefore.kcal === '150' && cardBefore.planned === '腿',
+  JSON.stringify(cardBefore))
+
+// 等真的跨过零点（卡片须在于跨零点前后都保持挂载，才谈得上"自动刷新"）
+const cardsCrossed = await waitFor(`document.querySelector('[data-diet-recorded]')?.getAttribute('data-diet-recorded') === '0'`, 30000)
+const cardAfter = await evaluate(`({
+  recorded: document.querySelector('[data-diet-recorded]')?.getAttribute('data-diet-recorded'),
+  kcal: document.querySelector('[data-diet-calories]')?.getAttribute('data-diet-calories'),
+  planned: document.querySelector('[data-fitness-planned]')?.getAttribute('data-fitness-planned')
+})`)
+check('**跨零点后：卡片归属自动切到新的一天**（已记录 0 餐 / 0 kcal / 今天无安排）',
+  cardsCrossed && cardAfter.recorded === '0' && cardAfter.kcal === '0' && cardAfter.planned === '',
+  JSON.stringify(cardAfter))
+
+// ---------- 4. 阶段二：重新载入（时钟回到 23:59:50），验证表单默认日期 ----------
+await send('Page.reload', { ignoreCache: true })
+await sleep(2500)
+await evaluate(HELPERS)
+await waitFor(`!!document.querySelector('aside')`, 10000)
+
 await evaluate(`__goto('游戏娱乐'); true`)
 await sleep(600)
 await evaluate(`document.querySelector('[data-tab="plays"]')?.click(); true`)
@@ -120,12 +159,12 @@ await waitFor(`!!document.querySelector('[data-play-date]')`, 6000)
 const beforeValue = await evaluate(`document.querySelector('[data-play-date]')?.value`)
 check('跨零点前：游玩记录默认日期是今天', beforeValue === D0, `date=${beforeValue}`)
 
-// ---------- 4. 等待真的跨过零点 ----------
+// ---------- 5. 等待真的跨过零点 ----------
 const crossed = await waitFor(`document.querySelector('[data-play-date]')?.value === '${D1}'`, 30000)
 const afterValue = await evaluate(`document.querySelector('[data-play-date]')?.value`)
 check('**跨零点后：游玩记录默认日期自动跟随到新的一天**', crossed && afterValue === D1, `date=${afterValue}`)
 
-// ---------- 5. 端到端：用默认日期记录一次游玩，落库日期应是 D1 ----------
+// ---------- 6. 端到端：用默认日期记录一次游玩，落库日期应是 D1 ----------
 await evaluate(`(async () => {
   window.__set(document.querySelector('[data-play-game]'), '零点测试');
   window.__set(document.querySelector('[data-play-minutes]'), 30);
