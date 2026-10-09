@@ -216,6 +216,41 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_inspirations_starred ON inspirations(starred);
       `)
     }
+  },
+  {
+    // v6 —— M4-1：健身（计划 / 打卡 / 身体数据）
+    version: 6,
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS workout_plans (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          schedule TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+
+        CREATE TABLE IF NOT EXISTS workout_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          plan_id INTEGER REFERENCES workout_plans(id) ON DELETE SET NULL,
+          date TEXT NOT NULL,
+          content TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_workout_logs_date ON workout_logs(date);
+
+        CREATE TABLE IF NOT EXISTS body_metrics (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL UNIQUE,
+          weight REAL NOT NULL,
+          body_fat REAL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_body_metrics_date ON body_metrics(date);
+      `)
+    }
   }
 ]
 

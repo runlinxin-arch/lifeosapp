@@ -309,3 +309,62 @@ export interface CaptureInput {
   imageBytes?: Uint8Array
   imageMime?: string
 }
+
+// ---------- M4-1 健身 ----------
+
+/** 单个动作记录 */
+export interface WorkoutItem {
+  name: string
+  /** 重量（kg），允许 0（自重动作） */
+  weight: number
+  /** 组数，≥1 整数 */
+  sets: number
+  /** 每组次数，≥1 整数 */
+  reps: number
+}
+
+export interface WorkoutPlan {
+  id: number
+  name: string
+  /** ISO 星期（"1"–"7"）→ 当天练什么 */
+  schedule: Record<string, string>
+  created_at: string
+  updated_at: string
+}
+
+export interface WorkoutLog {
+  id: number
+  plan_id: number | null
+  date: string
+  content: WorkoutItem[]
+  created_at: string
+  updated_at: string
+}
+
+export interface BodyMetric {
+  id: number
+  date: string
+  weight: number
+  body_fat: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface WorkoutPlanInput {
+  name: string
+  schedule?: Record<string, string>
+}
+export type WorkoutPlanPatch = Partial<WorkoutPlanInput>
+
+export interface WorkoutLogInput {
+  date: string
+  planId?: number | null
+  content?: WorkoutItem[]
+}
+export type WorkoutLogPatch = Partial<Omit<WorkoutLogInput, 'date'>>
+
+export interface BodyMetricInput {
+  date: string
+  weight: number
+  bodyFat?: number | null
+}

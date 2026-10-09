@@ -258,3 +258,63 @@ describe('灵感模块迁移 v5', () => {
     db.close()
   })
 })
+
+describe('健身模块迁移 v6', () => {
+  it('新库含三张健身表', () => {
+    const db = openDb(dbFile)
+    expect(version(db)).toBe(LATEST_VERSION)
+    expect(columns(db, 'workout_plans')).toEqual(['id', 'name', 'schedule', 'created_at', 'updated_at'])
+    expect(columns(db, 'workout_logs')).toContain('plan_id')
+    expect(columns(db, 'workout_logs')).toContain('content')
+    expect(columns(db, 'body_metrics')).toContain('weight')
+    expect(columns(db, 'body_metrics')).toContain('body_fat')
+    db.close()
+  })
+
+  it('v5 老库能平滑升级到 v6 且灵感数据保留', () => {
+    const raw = openDb(dbFile)
+    raw.exec('DROP TABLE body_metrics')
+    raw.exec('DROP TABLE workout_logs')
+    raw.exec('DROP TABLE workout_plans')
+    raw.exec('PRAGMA user_version = 5')
+    raw.prepare("INSERT INTO inspirations (text) VALUES ('M3-3 老灵感')").run()
+    raw.close()
+
+    const db = openDb(dbFile)
+    expect(version(db)).toBe(LATEST_VERSION)
+    expect(columns(db, 'workout_plans')).toContain('schedule')
+    expect(db.prepare('SELECT COUNT(*) c FROM inspirations').get()).toEqual({ c: 1 })
+    db.close()
+  })
+
+  it('删除训练计划时打卡记录保留，只解除关联', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO workout_plans (name) VALUES ('推拉腿')").run()
+    const pid = (db.prepare('SELECT id FROM workout_plans').get() as { id: number }).id
+    db.prepare("INSERT INTO workout_logs (plan_id, date, content) VALUES (?, '2026-10-09', '[]')").run(pid)
+
+    db.prepare('DELETE FROM workout_plans WHERE id = ?').run(pid)
+    const row = db.prepare('SELECT date, plan_id FROM workout_logs').get() as
+      { date: string; plan_id: number | null }
+    expect(row.date).toBe('2026-10-09')
+    expect(row.plan_id).toBeNull()
+    db.close()
+  })
+
+  it('身体数据每天只允许一条（date 唯一）', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO body_metrics (date, weight) VALUES ('2026-10-09', 70.5)").run()
+    expect(() => db.prepare("INSERT INTO body_metrics (date, weight) VALUES ('2026-10-09', 71)").run()).toThrow()
+    db.close()
+  })
+
+  it('schedule 与 content 默认值正确', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO workout_plans (name) VALUES ('P')").run()
+    expect(db.prepare('SELECT schedule FROM workout_plans').get()).toEqual({ schedule: '{}' })
+    const pid = (db.prepare('SELECT id FROM workout_plans').get() as { id: number }).id
+    db.prepare("INSERT INTO workout_logs (plan_id, date) VALUES (?, '2026-10-09')").run(pid)
+    expect(db.prepare('SELECT content FROM workout_logs').get()).toEqual({ content: '[]' })
+    db.close()
+  })
+})
