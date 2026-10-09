@@ -16,6 +16,10 @@
   - M3-3 验收记录：[docs/plans/2026-10-09-m3-3-acceptance.md](./docs/plans/2026-10-09-m3-3-acceptance.md)
   - M3-4 验收记录：[docs/plans/2026-10-09-m3-4-acceptance.md](./docs/plans/2026-10-09-m3-4-acceptance.md)
   - **M3 总验收记录：[docs/plans/2026-10-09-m3-acceptance.md](./docs/plans/2026-10-09-m3-acceptance.md)**
+  - M3 性能验证：[docs/plans/2026-10-09-m3-performance.md](./docs/plans/2026-10-09-m3-performance.md)
+  - M3 跨零点验证：[docs/plans/2026-10-09-m3-midnight-refresh.md](./docs/plans/2026-10-09-m3-midnight-refresh.md)
+  - M4 总览计划：[docs/plans/2026-10-09-m4-overview.md](./docs/plans/2026-10-09-m4-overview.md)
+  - M4-1 详细计划（健身）：[docs/plans/2026-10-09-m4-1-fitness.md](./docs/plans/2026-10-09-m4-1-fitness.md)
 
 ## 技术栈（全里程碑共用）
 
