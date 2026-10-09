@@ -294,6 +294,131 @@ const afterDel = await evaluate(`
 `)
 check('删除计时记录后项目累计归零且卡片同步', afterDel.total === '0m' && afterDel.cardTotal === '0m', JSON.stringify(afterDel))
 
+// ============ T11 代码片段库 ============
+await evaluate(`
+  (() => { [...__main().querySelectorAll('button')].find(b => b.textContent.trim() === '代码片段')?.click(); return true; })()
+`)
+await sleep(900)
+const snippetView = await evaluate(`__main().innerText.includes('代码片段库')`)
+check('代码片段视图渲染', snippetView)
+
+const addSnippet = async (title, lang, code, tags) => {
+  await evaluate(`
+    (() => {
+      const inputs = __main().querySelectorAll('input');
+      const titleEl = [...inputs].find(i => i.placeholder === '片段标题');
+      __setInput(titleEl, ${JSON.stringify(title)});
+      const langEl = [...inputs].find(i => i.placeholder === '语言');
+      __setInput(langEl, ${JSON.stringify(lang)});
+      const ta = __main().querySelector('textarea[placeholder="代码内容"]');
+      __setInput(ta, ${JSON.stringify(code)});
+      const tagEl = [...inputs].find(i => i.placeholder.includes('标签'));
+      __setInput(tagEl, ${JSON.stringify(tags)});
+      [...__main().querySelectorAll('button')].find(b => b.textContent.trim() === '保存片段').click();
+      return true;
+    })()
+  `)
+  await sleep(1400)
+}
+
+await addSnippet('【验收】防抖函数', 'typescript', 'const debounce = (fn, ms) => {}', '工具 性能')
+await addSnippet('【验收】SQL 分页', 'sql', 'SELECT * FROM t LIMIT 10', '数据库')
+
+const listAfterAdd = await evaluate(`
+  (() => ({ total: /(\\d+) \\/ (\\d+)/.exec(__main().innerText)?.[2], hasBoth: __main().innerText.includes('【验收】防抖函数') && __main().innerText.includes('【验收】SQL 分页') }))()
+`)
+check('新建片段进入列表', listAfterAdd.hasBoth && listAfterAdd.total === '2', JSON.stringify(listAfterAdd))
+
+// 关键词筛选
+await evaluate(`
+  (() => {
+    const el = [...__main().querySelectorAll('input')].find(i => i.placeholder.includes('搜索标题'));
+    __setInput(el, 'debounce');
+    return true;
+  })()
+`)
+await sleep(700)
+const kw = await evaluate(`(() => ({ n: /(\\d+) \\/ (\\d+)/.exec(__main().innerText)?.[1], has: __main().innerText.includes('防抖') }))()`)
+check('关键词筛选命中代码内容', kw.n === '1' && kw.has, JSON.stringify(kw))
+
+// 无命中
+await evaluate(`
+  (() => {
+    const el = [...__main().querySelectorAll('input')].find(i => i.placeholder.includes('搜索标题'));
+    __setInput(el, '不存在的关键词xyz');
+    return true;
+  })()
+`)
+await sleep(700)
+const noHit = await evaluate(`__main().innerText.includes('没有匹配的片段')`)
+check('无命中显示空状态', noHit)
+
+// 标签筛选
+await evaluate(`
+  (() => {
+    const el = [...__main().querySelectorAll('input')].find(i => i.placeholder.includes('搜索标题'));
+    __setInput(el, '');
+    return true;
+  })()
+`)
+await sleep(600)
+await evaluate(`
+  (() => { [...__main().querySelectorAll('button')].find(b => b.textContent.trim() === '数据库').click(); return true; })()
+`)
+await sleep(700)
+const tagFilter = await evaluate(`(() => ({ n: /(\\d+) \\/ (\\d+)/.exec(__main().innerText)?.[1], sql: __main().innerText.includes('SQL 分页'), deb: __main().innerText.includes('防抖函数') }))()`)
+check('标签筛选只留命中项', tagFilter.n === '1' && tagFilter.sql && !tagFilter.deb, JSON.stringify(tagFilter))
+await shot('17-dev-snippets')
+
+await evaluate(`
+  (() => { [...__main().querySelectorAll('button')].find(b => b.textContent.trim() === '清除筛选')?.click(); return true; })()
+`)
+await sleep(600)
+const cleared = await evaluate(`/(\\d+) \\/ (\\d+)/.exec(__main().innerText)?.[1] === (/(\\d+) \\/ (\\d+)/.exec(__main().innerText)?.[2])`)
+check('清除筛选后恢复全部', cleared)
+
+// ============ T11 技术笔记 ============
+await evaluate(`
+  (() => { [...__main().querySelectorAll('button')].find(b => b.textContent.trim() === '技术笔记')?.click(); return true; })()
+`)
+await sleep(900)
+check('技术笔记视图渲染', await evaluate(`__main().innerText.includes('技术笔记')`))
+
+// 关联项目的笔记
+await evaluate(`
+  (() => {
+    const inputs = __main().querySelectorAll('input');
+    __setInput([...inputs].find(i => i.placeholder === '笔记标题'), '【验收】SQLite WAL 笔记');
+    __setInput(__main().querySelector('textarea[placeholder="正文"]'), '写前日志，读不阻塞写');
+    const sel = __main().querySelector('select');
+    __setSelect(sel, sel.options[1].value);
+    [...__main().querySelectorAll('button')].find(b => b.textContent.trim() === '保存笔记').click();
+    return true;
+  })()
+`)
+await sleep(1500)
+const noteLinked = await evaluate(`
+  (() => {
+    const t = __main().innerText;
+    return { has: t.includes('【验收】SQLite WAL 笔记'), linked: t.includes('${PROJECT}'), unlinked: t.includes('未关联') };
+  })()
+`)
+check('技术笔记可关联项目并显示项目名', noteLinked.has && noteLinked.linked, JSON.stringify(noteLinked))
+
+// 不关联的笔记
+await evaluate(`
+  (() => {
+    const inputs = __main().querySelectorAll('input');
+    __setInput([...inputs].find(i => i.placeholder === '笔记标题'), '【验收】未关联笔记');
+    [...__main().querySelectorAll('button')].find(b => b.textContent.trim() === '保存笔记').click();
+    return true;
+  })()
+`)
+await sleep(1500)
+const noteUnlinked = await evaluate(`__main().innerText.includes('未关联') && __main().innerText.includes('【验收】未关联笔记')`)
+check('不关联项目的笔记显示「未关联」', noteUnlinked)
+await shot('18-dev-notes')
+
 console.log('')
 console.log(`===== ${results.filter((r) => r.pass).length}/${results.length} 通过 =====`)
 for (const r of results.filter((x) => !x.pass)) console.log('  未通过: ' + r.label)
