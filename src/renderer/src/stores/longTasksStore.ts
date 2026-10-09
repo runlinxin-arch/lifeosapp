@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { LongTask, LongTaskPatch } from '@shared/types'
+import type { LongTask, LongTaskPatch, MarkFromSourceInput, ModuleKey } from '@shared/types'
 import { api } from '../lib/ipc'
 import { todayStr } from '../lib/dates'
 import { computeTimelineRange } from '../lib/clock'
@@ -20,6 +20,10 @@ interface LongTasksState {
   setDone: (id: number, done: boolean) => Promise<boolean>
   update: (id: number, patch: LongTaskPatch) => Promise<boolean>
   remove: (id: number) => Promise<boolean>
+  /** 模块事项（学习项/开发项目等）标记上轴：同来源二次调用是更新 */
+  markFromSource: (input: MarkFromSourceInput) => Promise<boolean>
+  /** 取消某来源的标记 */
+  unmarkSource: (sourceModule: ModuleKey, sourceId: number) => Promise<boolean>
 }
 
 /** 显示范围来自设置（7 / 30 / 90 天），并且每次都按"当前这一天"重算 */
@@ -75,6 +79,18 @@ export const useLongTasksStore = create<LongTasksState>((set) => {
     remove: (id) =>
       run(async () => {
         await api.longTasks.remove(id)
+        await fetchRange()
+      }),
+
+    markFromSource: (input) =>
+      run(async () => {
+        await api.longTasks.markFromSource(input)
+        await fetchRange()
+      }),
+
+    unmarkSource: (sourceModule, sourceId) =>
+      run(async () => {
+        await api.longTasks.removeBySource(sourceModule, sourceId)
         await fetchRange()
       })
   }

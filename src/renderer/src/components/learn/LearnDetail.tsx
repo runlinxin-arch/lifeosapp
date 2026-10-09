@@ -3,6 +3,7 @@ import type { LearnStatus, LearnType } from '@shared/types'
 import { progressPercent } from '@shared/learnStats'
 import { useLearnStore } from '../../stores/learnStore'
 import { LearnTimer } from './LearnTimer'
+import { LearnMarkButton } from './LearnMarkButton'
 
 const TYPE_LABEL: Record<LearnType, string> = { book: '📖 书', course: '🎬 课程', skill: '🧠 技能' }
 const STATUS_LABEL: Record<LearnStatus, string> = {
@@ -83,6 +84,9 @@ export function LearnDetail({ itemId }: { itemId: number }): JSX.Element | null 
 
       {/* 计时 */}
       <LearnTimer itemId={item.id} />
+
+      {/* 长期任务标记 */}
+      <LearnMarkButton item={item} />
 
       {/* 进度 */}
       <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3 mb-3">
