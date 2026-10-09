@@ -1,4 +1,4 @@
-import type { MediaStatus, MediaType, Priority } from './types'
+import type { MediaStatus, MediaType } from './types'
 
 /**
  * 游戏娱乐模块的枚举、标签与展示换算。
@@ -11,13 +11,8 @@ export const MEDIA_TYPE_LABELS: Record<MediaType, string> = { movie: '电影', s
 export const MEDIA_STATUSES: MediaStatus[] = ['planned', 'doing', 'done']
 export const MEDIA_STATUS_LABELS: Record<MediaStatus, string> = { planned: '想看', doing: '在看', done: '看完' }
 
-export const PRIORITY_LABELS: Record<Priority, string> = { low: '低', mid: '中', high: '高' }
-/** 数值越小越靠前（愿望单排序用） */
-export const PRIORITY_ORDER: Record<Priority, number> = { high: 0, mid: 1, low: 2 }
-
 const TYPES = new Set<string>(MEDIA_TYPES)
 const STATUSES = new Set<string>(MEDIA_STATUSES)
-const PRIORITIES = new Set<string>(['low', 'mid', 'high'])
 
 export function isMediaType(v: unknown): v is MediaType {
   return typeof v === 'string' && TYPES.has(v)
@@ -25,10 +20,6 @@ export function isMediaType(v: unknown): v is MediaType {
 
 export function isMediaStatus(v: unknown): v is MediaStatus {
   return typeof v === 'string' && STATUSES.has(v)
-}
-
-export function isPriority(v: unknown): v is Priority {
-  return typeof v === 'string' && PRIORITIES.has(v)
 }
 
 /** 五星评分：取整并夹到 0–5；非数字一律 0（未评分） */

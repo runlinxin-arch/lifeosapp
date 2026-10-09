@@ -165,11 +165,6 @@ export function registerIpc(db: DatabaseSync): void {
   ipcMain.handle('ent:updatePlay', (_e, id: number, patch: ent.PlayPatch) => ent.updatePlay(db, id, patch))
   ipcMain.handle('ent:deletePlay', (_e, id: number) => ent.deletePlay(db, id))
 
-  ipcMain.handle('ent:listWishlist', () => ent.listWishlist(db))
-  ipcMain.handle('ent:createWish', (_e, input: ent.WishInput) => ent.createWish(db, input))
-  ipcMain.handle('ent:updateWish', (_e, id: number, patch: ent.WishPatch) => ent.updateWish(db, id, patch))
-  ipcMain.handle('ent:deleteWish', (_e, id: number) => ent.deleteWish(db, id))
-
   ipcMain.handle('ent:listMedia', (_e, from?: string, to?: string) => ent.listMedia(db, from, to))
   ipcMain.handle('ent:createMedia', (_e, input: ent.MediaInput) => ent.createMedia(db, input))
   ipcMain.handle('ent:updateMedia', (_e, id: number, patch: ent.MediaPatch) => ent.updateMedia(db, id, patch))

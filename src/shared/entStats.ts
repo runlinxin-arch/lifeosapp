@@ -1,5 +1,5 @@
-import type { Media, MediaStatus, MediaType, Play, WishItem } from './types'
-import { MEDIA_STATUSES, MEDIA_TYPES, PRIORITY_ORDER } from './entContent'
+import type { Media, MediaStatus, MediaType, Play } from './types'
+import { MEDIA_STATUSES, MEDIA_TYPES } from './entContent'
 import { weekDays } from './layout'
 
 /**
@@ -52,13 +52,6 @@ export function recentPlays(plays: Play[], n: number): Play[] {
   return [...plays]
     .sort((a, b) => (a.date === b.date ? b.id - a.id : a.date < b.date ? 1 : -1))
     .slice(0, Math.floor(n))
-}
-
-/** 愿望单排序：高优先级在前，同级按 id 升序；不修改入参 */
-export function sortWishlist(items: WishItem[]): WishItem[] {
-  return [...items].sort(
-    (a, b) => (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1) || a.id - b.id
-  )
 }
 
 /** 按状态分组；总是返回三个键，组内保持传入顺序 */

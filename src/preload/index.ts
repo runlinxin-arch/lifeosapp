@@ -132,11 +132,6 @@ const api = {
     updatePlay: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('ent:updatePlay', id, patch),
     removePlay: (id: number): Promise<unknown> => ipcRenderer.invoke('ent:deletePlay', id),
 
-    listWishlist: (): Promise<unknown> => ipcRenderer.invoke('ent:listWishlist'),
-    createWish: (input: unknown): Promise<unknown> => ipcRenderer.invoke('ent:createWish', input),
-    updateWish: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('ent:updateWish', id, patch),
-    removeWish: (id: number): Promise<unknown> => ipcRenderer.invoke('ent:deleteWish', id),
-
     listMedia: (from?: string, to?: string): Promise<unknown> => ipcRenderer.invoke('ent:listMedia', from, to),
     createMedia: (input: unknown): Promise<unknown> => ipcRenderer.invoke('ent:createMedia', input),
     updateMedia: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('ent:updateMedia', id, patch),

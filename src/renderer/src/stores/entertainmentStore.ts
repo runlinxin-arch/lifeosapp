@@ -1,15 +1,14 @@
 import { create } from 'zustand'
-import type { Media, MediaInput, MediaPatch, Play, PlayInput, WishInput, WishItem, WishPatch } from '@shared/types'
+import type { Media, MediaInput, MediaPatch, Play, PlayInput } from '@shared/types'
 import { api } from '../lib/ipc'
 import { LatestGuard } from '../lib/latest'
 import { formatIpcError } from '../lib/errors'
 
-/** 页签：游玩记录 / 愿望单 / 影视 / 书籍（影视与书籍分开，用户要求） */
-export type EntTab = 'plays' | 'wishlist' | 'screen' | 'book'
+/** 页签：游玩记录 / 影视 / 书籍（影视与书籍分开；愿望单已按用户要求移除） */
+export type EntTab = 'plays' | 'screen' | 'book'
 
 interface EntState {
   plays: Play[]
-  wishlist: WishItem[]
   media: Media[]
   tab: EntTab
   loading: boolean
@@ -21,10 +20,6 @@ interface EntState {
 
   addPlay: (input: PlayInput) => Promise<boolean>
   removePlay: (id: number) => Promise<boolean>
-
-  addWish: (input: WishInput) => Promise<boolean>
-  updateWish: (id: number, patch: WishPatch) => Promise<boolean>
-  removeWish: (id: number) => Promise<boolean>
 
   addMedia: (input: MediaInput) => Promise<boolean>
   updateMedia: (id: number, patch: MediaPatch) => Promise<boolean>
@@ -45,19 +40,12 @@ export const useEntertainmentStore = create<EntState>((set) => {
 
   // 并发刷新时只认最新一次请求，避免慢响应把新数据覆盖回旧值
   const playsGuard = new LatestGuard()
-  const wishGuard = new LatestGuard()
   const mediaGuard = new LatestGuard()
 
   const fetchPlays = async (): Promise<void> => {
     const isLatest = playsGuard.begin()
     const plays = await api.ent.listPlays()
     if (isLatest()) set({ plays })
-  }
-
-  const fetchWishlist = async (): Promise<void> => {
-    const isLatest = wishGuard.begin()
-    const wishlist = await api.ent.listWishlist()
-    if (isLatest()) set({ wishlist })
   }
 
   const fetchMedia = async (): Promise<void> => {
@@ -68,7 +56,6 @@ export const useEntertainmentStore = create<EntState>((set) => {
 
   return {
     plays: [],
-    wishlist: [],
     media: [],
     tab: 'plays',
     loading: false,
@@ -80,15 +67,11 @@ export const useEntertainmentStore = create<EntState>((set) => {
     load: () => run(async () => {
       set({ loading: true })
       // 游玩记录跨全部历史聚合，因此不按日期区间裁剪
-      await Promise.all([fetchPlays(), fetchWishlist(), fetchMedia()])
+      await Promise.all([fetchPlays(), fetchMedia()])
     }),
 
     addPlay: (input) => run(async () => { await api.ent.createPlay(input); await fetchPlays() }),
     removePlay: (id) => run(async () => { await api.ent.removePlay(id); await fetchPlays() }),
-
-    addWish: (input) => run(async () => { await api.ent.createWish(input); await fetchWishlist() }),
-    updateWish: (id, patch) => run(async () => { await api.ent.updateWish(id, patch); await fetchWishlist() }),
-    removeWish: (id) => run(async () => { await api.ent.removeWish(id); await fetchWishlist() }),
 
     addMedia: (input) => run(async () => { await api.ent.createMedia(input); await fetchMedia() }),
     updateMedia: (id, patch) => run(async () => { await api.ent.updateMedia(id, patch); await fetchMedia() }),

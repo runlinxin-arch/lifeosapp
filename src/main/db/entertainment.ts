@@ -1,19 +1,15 @@
 import type { DatabaseSync } from 'node:sqlite'
-import type {
-  Media, MediaInput, MediaPatch, Play, PlayInput, PlayPatch, WishInput, WishItem, WishPatch
-} from '@shared/types'
-import { clampRating, isMediaStatus, isMediaType, isPriority, normalizeComment } from '@shared/entContent'
+import type { Media, MediaInput, MediaPatch, Play, PlayInput, PlayPatch } from '@shared/types'
+import { clampRating, isMediaStatus, isMediaType, normalizeComment } from '@shared/entContent'
 import { assertDateStr, assertNonEmpty } from './validate'
 
-export type { MediaInput, MediaPatch, PlayInput, PlayPatch, WishInput, WishPatch } from '@shared/types'
+export type { MediaInput, MediaPatch, PlayInput, PlayPatch } from '@shared/types'
 
 /** 单次游玩时长上限：一天 24 小时 */
 const MAX_MINUTES = 1440
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const asPlay = (r: any): Play => r as Play
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const asWish = (r: any): WishItem => r as WishItem
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const asMedia = (r: any): Media => r as Media
 
@@ -65,47 +61,6 @@ export function updatePlay(db: DatabaseSync, id: number, patch: PlayPatch): Play
 
 export function deletePlay(db: DatabaseSync, id: number): void {
   db.prepare('DELETE FROM plays WHERE id = ?').run(id)
-}
-
-// ---------- 愿望单 ----------
-
-export function listWishlist(db: DatabaseSync): WishItem[] {
-  return (db.prepare('SELECT * FROM wishlist ORDER BY id ASC').all() as unknown as WishItem[]).map(asWish)
-}
-
-export function getWish(db: DatabaseSync, id: number): WishItem | null {
-  const row = db.prepare('SELECT * FROM wishlist WHERE id = ?').get(id)
-  return row ? asWish(row) : null
-}
-
-export function createWish(db: DatabaseSync, input: WishInput): WishItem {
-  const name = assertNonEmpty(input.name, '游戏名称')
-  const platform = String(input.platform ?? '').trim()
-  const priority = input.priority ?? 'mid'
-  if (!isPriority(priority)) throw new Error(`优先级不合法：${String(priority)}`)
-
-  const info = db.prepare('INSERT INTO wishlist (name, platform, priority) VALUES (?, ?, ?)')
-    .run(name, platform, priority)
-  return getWish(db, Number(info.lastInsertRowid))!
-}
-
-export function updateWish(db: DatabaseSync, id: number, patch: WishPatch): WishItem {
-  const cur = getWish(db, id)
-  if (!cur) throw new Error(`wishlist ${id} not found`)
-
-  const name = patch.name !== undefined ? assertNonEmpty(patch.name, '游戏名称') : cur.name
-  const platform = patch.platform !== undefined ? String(patch.platform).trim() : cur.platform
-  const priority = patch.priority !== undefined ? patch.priority : cur.priority
-  if (!isPriority(priority)) throw new Error(`优先级不合法：${String(priority)}`)
-
-  db.prepare(`
-    UPDATE wishlist SET name=?, platform=?, priority=?, updated_at=datetime('now','localtime') WHERE id=?
-  `).run(name, platform, priority, id)
-  return getWish(db, id)!
-}
-
-export function deleteWish(db: DatabaseSync, id: number): void {
-  db.prepare('DELETE FROM wishlist WHERE id = ?').run(id)
 }
 
 // ---------- 影视书 ----------

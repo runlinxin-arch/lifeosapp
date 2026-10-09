@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { openDb } from '../src/main/db'
 import {
   listPlays, createPlay, updatePlay, deletePlay,
-  listWishlist, createWish, updateWish, deleteWish,
   listMedia, createMedia, updateMedia, deleteMedia
 } from '../src/main/db/entertainment'
 
@@ -71,46 +70,6 @@ describe('游玩记录', () => {
     const p = createPlay(db, { game: 'a', date: '2026-10-09', minutes: 30 })
     deletePlay(db, p.id)
     expect(listPlays(db)).toHaveLength(0)
-  })
-})
-
-describe('愿望单', () => {
-  it('创建后可读回，默认优先级 mid、平台空串', () => {
-    expect(createWish(db, { name: '丝之歌' })).toMatchObject({ name: '丝之歌', platform: '', priority: 'mid' })
-  })
-
-  it('平台去空白，优先级可指定', () => {
-    expect(createWish(db, { name: 'a', platform: '  PC  ', priority: 'high' }))
-      .toMatchObject({ platform: 'PC', priority: 'high' })
-  })
-
-  it('名称为空被拒绝', () => {
-    expect(() => createWish(db, { name: '  ' })).toThrow('游戏名称不能为空')
-  })
-
-  it('优先级不合法被拒绝', () => {
-    expect(() => createWish(db, { name: 'a', priority: 'urgent' as never })).toThrow('优先级不合法')
-  })
-
-  it('更新是合并语义（只改优先级时平台保持）', () => {
-    const w = createWish(db, { name: 'a', platform: 'PC', priority: 'low' })
-    expect(updateWish(db, w.id, { priority: 'high' })).toMatchObject({ name: 'a', platform: 'PC', priority: 'high' })
-  })
-
-  it('列表按 id 升序', () => {
-    createWish(db, { name: 'A' })
-    createWish(db, { name: 'B' })
-    expect(listWishlist(db).map((w) => w.name)).toEqual(['A', 'B'])
-  })
-
-  it('更新不存在的记录报错', () => {
-    expect(() => updateWish(db, 999, { priority: 'high' })).toThrow('not found')
-  })
-
-  it('删除', () => {
-    const w = createWish(db, { name: 'a' })
-    deleteWish(db, w.id)
-    expect(listWishlist(db)).toHaveLength(0)
   })
 })
 

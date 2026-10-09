@@ -445,23 +445,6 @@ export interface PlayInput {
 }
 export type PlayPatch = Partial<PlayInput>
 
-/** 愿望单条目 */
-export interface WishItem {
-  id: number
-  name: string
-  platform: string
-  priority: Priority
-  created_at: string
-  updated_at: string
-}
-
-export interface WishInput {
-  name: string
-  platform?: string
-  priority?: Priority
-}
-export type WishPatch = Partial<WishInput>
-
 /** 影视书类型：电影 / 剧集 / 书籍 */
 export type MediaType = 'movie' | 'series' | 'book'
 /** 影视书状态：想看 / 在看 / 看完 */

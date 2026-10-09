@@ -1,14 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import {
-  gameSummaries, totalMinutes, recentPlays, sortWishlist, mediaGroups, mediaByType,
+  gameSummaries, totalMinutes, recentPlays, mediaGroups, mediaByType,
   playRangeBounds, filterPlays, mediaInScope
 } from '../src/shared/entStats'
-import type { Play, WishItem, Media, MediaType, MediaStatus, Priority } from '../src/shared/types'
+import type { Play, Media, MediaType, MediaStatus } from '../src/shared/types'
 
 const play = (id: number, game: string, date: string, minutes: number): Play =>
   ({ id, game, date, minutes, created_at: '', updated_at: '' })
-const wish = (id: number, name: string, priority: Priority): WishItem =>
-  ({ id, name, platform: '', priority, created_at: '', updated_at: '' })
 const media = (id: number, title: string, type: MediaType, status: MediaStatus, rating = 0, comment = ''): Media =>
   ({ id, title, type, status, rating, comment, date: '2026-10-09', created_at: '', updated_at: '' })
 
@@ -70,18 +68,6 @@ describe('recentPlays', () => {
   it('n ≤ 0 返回空数组', () => {
     expect(recentPlays(rows, 0)).toEqual([])
     expect(recentPlays(rows, -1)).toEqual([])
-  })
-})
-
-describe('sortWishlist', () => {
-  it('高优先级在前，同级按 id 升序', () => {
-    const rows = [wish(1, 'A', 'low'), wish(2, 'B', 'high'), wish(3, 'C', 'mid'), wish(4, 'D', 'high')]
-    expect(sortWishlist(rows).map((w) => w.name)).toEqual(['B', 'D', 'C', 'A'])
-  })
-  it('不修改入参', () => {
-    const rows = [wish(1, 'A', 'low'), wish(2, 'B', 'high')]
-    sortWishlist(rows)
-    expect(rows.map((w) => w.name)).toEqual(['A', 'B'])
   })
 })
 

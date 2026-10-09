@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   MEDIA_TYPES, MEDIA_TYPE_LABELS, MEDIA_STATUSES, MEDIA_STATUS_LABELS,
-  PRIORITY_LABELS, PRIORITY_ORDER, isMediaType, isMediaStatus, isPriority,
+  isMediaType, isMediaStatus,
   clampRating, normalizeComment, stars
 } from '../src/shared/entContent'
 
@@ -14,19 +14,11 @@ describe('枚举与标签', () => {
     expect(MEDIA_STATUSES).toEqual(['planned', 'doing', 'done'])
     expect(MEDIA_STATUS_LABELS).toEqual({ planned: '想看', doing: '在看', done: '看完' })
   })
-  it('优先级标签与顺序（high 最靠前）', () => {
-    expect(PRIORITY_LABELS).toEqual({ low: '低', mid: '中', high: '高' })
-    expect(PRIORITY_ORDER.high).toBeLessThan(PRIORITY_ORDER.mid)
-    expect(PRIORITY_ORDER.mid).toBeLessThan(PRIORITY_ORDER.low)
-  })
   it('类型守卫', () => {
     expect(isMediaType('movie')).toBe(true)
     expect(isMediaType('anime')).toBe(false)
     expect(isMediaStatus('doing')).toBe(true)
     expect(isMediaStatus('dropped')).toBe(false)
-    expect(isPriority('high')).toBe(true)
-    expect(isPriority('urgent')).toBe(false)
-    expect(isPriority(null)).toBe(false)
   })
 })
 
