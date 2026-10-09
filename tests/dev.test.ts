@@ -5,7 +5,8 @@ import {
   listDevTasks, createDevTask, updateDevTask, deleteDevTask, moveDevTask,
   listBugs, createBug, updateBug, deleteBug,
   listSnippets, createSnippet, updateSnippet, deleteSnippet, searchSnippets,
-  listTechNotes, createTechNote, updateTechNote, deleteTechNote
+  listTechNotes, createTechNote, updateTechNote, deleteTechNote,
+  listDevSessions, createDevSession, deleteDevSession, minutesByProject, minutesByTask
 } from '../src/main/db/dev'
 import { listRange } from '../src/main/db/longTasks'
 
@@ -439,5 +440,112 @@ describe('技术笔记', () => {
     createTechNote(db, { title: '老' })
     createTechNote(db, { title: '新' })
     expect(listTechNotes(db).map((n) => n.title)).toEqual(['新', '老'])
+  })
+})
+
+describe('开发计时', () => {
+  it('写入后可查询，按开始时间升序', () => {
+    const p = createProject(db, { name: 'A' })
+    const t = createDevTask(db, { projectId: p.id, title: 'T' })
+    createDevSession(db, t.id, '2026-10-09 10:00', '2026-10-09 11:00', 60)
+    createDevSession(db, t.id, '2026-10-09 09:00', '2026-10-09 09:30', 30)
+    expect(listDevSessions(db).map((s) => s.started_at)).toEqual(['2026-10-09 09:00', '2026-10-09 10:00'])
+    expect(listDevSessions(db, t.id)).toHaveLength(2)
+  })
+
+  it('按任务过滤只返回该任务的记录', () => {
+    const p = createProject(db, { name: 'A' })
+    const t1 = createDevTask(db, { projectId: p.id, title: 'T1' })
+    const t2 = createDevTask(db, { projectId: p.id, title: 'T2' })
+    createDevSession(db, t1.id, '2026-10-09 09:00', '2026-10-09 10:00', 60)
+    createDevSession(db, t2.id, '2026-10-09 10:00', '2026-10-09 11:00', 60)
+    expect(listDevSessions(db, t1.id)).toHaveLength(1)
+  })
+
+  it('结束时不能早于开始', () => {
+    const p = createProject(db, { name: 'A' })
+    const t = createDevTask(db, { projectId: p.id, title: 'T' })
+    expect(() => createDevSession(db, t.id, '2026-10-09 11:00', '2026-10-09 10:00', 60)).toThrow('结束时间')
+  })
+
+  it('时长必须是 ≥1 的整数', () => {
+    const p = createProject(db, { name: 'A' })
+    const t = createDevTask(db, { projectId: p.id, title: 'T' })
+    expect(() => createDevSession(db, t.id, '2026-10-09 09:00', '2026-10-09 10:00', 0)).toThrow('时长')
+    expect(() => createDevSession(db, t.id, '2026-10-09 09:00', '2026-10-09 10:00', 1.5)).toThrow('时长')
+  })
+
+  it('时间格式非法被拒绝', () => {
+    const p = createProject(db, { name: 'A' })
+    const t = createDevTask(db, { projectId: p.id, title: 'T' })
+    expect(() => createDevSession(db, t.id, 'bad', '2026-10-09 10:00', 10)).toThrow('开始时间')
+    expect(() => createDevSession(db, t.id, '2026-10-09 09:00', '2026-10-09 25:00', 10)).toThrow('结束时间')
+  })
+
+  it('给不存在的任务记时被拒绝', () => {
+    expect(() => createDevSession(db, 999, '2026-10-09 09:00', '2026-10-09 10:00', 60)).toThrow('not found')
+  })
+
+  it('删除记录', () => {
+    const p = createProject(db, { name: 'A' })
+    const t = createDevTask(db, { projectId: p.id, title: 'T' })
+    const s = createDevSession(db, t.id, '2026-10-09 09:00', '2026-10-09 10:00', 60)
+    deleteDevSession(db, s.id)
+    expect(listDevSessions(db)).toHaveLength(0)
+  })
+
+  it('minutesByProject 按项目汇总', () => {
+    const a = createProject(db, { name: 'A' })
+    const b = createProject(db, { name: 'B' })
+    const ta1 = createDevTask(db, { projectId: a.id, title: 'A1' })
+    const ta2 = createDevTask(db, { projectId: a.id, title: 'A2' })
+    const tb = createDevTask(db, { projectId: b.id, title: 'B1' })
+    createDevSession(db, ta1.id, '2026-10-09 09:00', '2026-10-09 10:00', 60)
+    createDevSession(db, ta2.id, '2026-10-09 10:00', '2026-10-09 10:30', 30)
+    createDevSession(db, tb.id, '2026-10-09 11:00', '2026-10-09 11:15', 15)
+
+    const m = minutesByProject(db)
+    expect(m.get(a.id)).toBe(90)
+    expect(m.get(b.id)).toBe(15)
+  })
+
+  it('无计时的项目不在 minutesByProject 里出现', () => {
+    const p = createProject(db, { name: 'A' })
+    expect(minutesByProject(db).get(p.id)).toBeUndefined()
+  })
+
+  it('minutesByTask 只统计该项目下的任务', () => {
+    const a = createProject(db, { name: 'A' })
+    const b = createProject(db, { name: 'B' })
+    const ta = createDevTask(db, { projectId: a.id, title: 'A1' })
+    const tb = createDevTask(db, { projectId: b.id, title: 'B1' })
+    createDevSession(db, ta.id, '2026-10-09 09:00', '2026-10-09 10:00', 60)
+    createDevSession(db, tb.id, '2026-10-09 09:00', '2026-10-09 09:20', 20)
+
+    expect(minutesByTask(db, a.id).get(ta.id)).toBe(60)
+    expect(minutesByTask(db, a.id).get(tb.id)).toBeUndefined()
+  })
+
+  it('项目统计的 minutes 与 minutesByProject 口径一致', () => {
+    const a = createProject(db, { name: 'A' })
+    const t = createDevTask(db, { projectId: a.id, title: 'T' })
+    createDevSession(db, t.id, '2026-10-09 09:00', '2026-10-09 10:00', 60)
+    expect(projectStats(db, a.id).minutes).toBe(minutesByProject(db).get(a.id))
+  })
+
+  it('删除任务会连带删除其计时记录', () => {
+    const p = createProject(db, { name: 'A' })
+    const t = createDevTask(db, { projectId: p.id, title: 'T' })
+    createDevSession(db, t.id, '2026-10-09 09:00', '2026-10-09 10:00', 60)
+    deleteDevTask(db, t.id)
+    expect(listDevSessions(db)).toHaveLength(0)
+  })
+
+  it('删除项目会连带删除其全部计时记录', () => {
+    const p = createProject(db, { name: 'A' })
+    const t = createDevTask(db, { projectId: p.id, title: 'T' })
+    createDevSession(db, t.id, '2026-10-09 09:00', '2026-10-09 10:00', 60)
+    deleteProject(db, p.id)
+    expect(listDevSessions(db)).toHaveLength(0)
   })
 })

@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 import type {
   Bug, BugInput, BugPatch, BugStatus,
-  DevColumn, DevTask, DevTaskInput, DevTaskPatch, Priority,
+  DevColumn, DevSession, DevTask, DevTaskInput, DevTaskPatch, Priority,
   Project, ProjectInput, ProjectPatch, ProjectStatus,
   Snippet, SnippetInput, SnippetPatch,
   TechNote, TechNoteInput, TechNotePatch
@@ -428,4 +428,84 @@ export function updateTechNote(db: DatabaseSync, id: number, patch: TechNotePatc
 
 export function deleteTechNote(db: DatabaseSync, id: number): void {
   db.prepare('DELETE FROM tech_notes WHERE id = ?').run(id)
+}
+
+// ---------- 开发计时 ----------
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const asSession = (r: any): DevSession => r as DevSession
+
+/** 'YYYY-MM-DD HH:MM' 的格式与日历校验（与 events 的时间格式一致） */
+function assertDateTime(v: string, label: string): void {
+  if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(v)) {
+    throw new Error(`${label}必须是 YYYY-MM-DD HH:MM 格式，收到：${v}`)
+  }
+  assertDateStr(v.slice(0, 10), label)
+  const hh = Number(v.slice(11, 13))
+  const mm = Number(v.slice(14, 16))
+  if (hh > 23 || mm > 59) throw new Error(`${label}不是有效时间：${v}`)
+}
+
+/**
+ * 开发计时记录。
+ * 只记录**已结束**的会话——进行中的计时器状态保存在渲染端内存里，
+ * 应用崩溃不会在库里留下没有结束时间的悬挂记录。
+ */
+export function listDevSessions(db: DatabaseSync, taskId?: number): DevSession[] {
+  const sql = taskId === undefined
+    ? 'SELECT * FROM dev_sessions ORDER BY started_at ASC, id ASC'
+    : 'SELECT * FROM dev_sessions WHERE task_id = ? ORDER BY started_at ASC, id ASC'
+  const rows = taskId === undefined ? db.prepare(sql).all() : db.prepare(sql).all(taskId)
+  return (rows as unknown as DevSession[]).map(asSession)
+}
+
+export function createDevSession(
+  db: DatabaseSync,
+  taskId: number,
+  startedAt: string,
+  endedAt: string,
+  minutes: number
+): DevSession {
+  assertDateTime(startedAt, '开始时间')
+  assertDateTime(endedAt, '结束时间')
+  if (endedAt < startedAt) throw new Error('结束时间不能早于开始时间')
+  if (!Number.isInteger(minutes) || minutes < 1) throw new Error('开发时长必须是 ≥1 的整数分钟')
+  if (!getDevTask(db, taskId)) throw new Error(`dev_task ${taskId} not found`)
+
+  const info = db.prepare(`
+    INSERT INTO dev_sessions (task_id, started_at, ended_at, minutes) VALUES (?, ?, ?, ?)
+  `).run(taskId, startedAt, endedAt, minutes)
+  return db.prepare('SELECT * FROM dev_sessions WHERE id = ?')
+    .get(Number(info.lastInsertRowid)) as unknown as DevSession
+}
+
+export function deleteDevSession(db: DatabaseSync, id: number): void {
+  db.prepare('DELETE FROM dev_sessions WHERE id = ?').run(id)
+}
+
+/** 按项目汇总时长（只包含有记录的项目） */
+export function minutesByProject(db: DatabaseSync): Map<number, number> {
+  const out = new Map<number, number>()
+  for (const r of db.prepare(`
+    SELECT t.project_id AS project_id, COALESCE(SUM(s.minutes), 0) AS m
+    FROM dev_sessions s JOIN dev_tasks t ON s.task_id = t.id
+    GROUP BY t.project_id
+  `).all() as unknown as { project_id: number; m: number }[]) {
+    out.set(r.project_id, r.m)
+  }
+  return out
+}
+
+/** 按任务汇总时长，仅限指定项目 */
+export function minutesByTask(db: DatabaseSync, projectId: number): Map<number, number> {
+  const out = new Map<number, number>()
+  for (const r of db.prepare(`
+    SELECT s.task_id AS task_id, COALESCE(SUM(s.minutes), 0) AS m
+    FROM dev_sessions s JOIN dev_tasks t ON s.task_id = t.id
+    WHERE t.project_id = ?
+    GROUP BY s.task_id
+  `).all(projectId) as unknown as { task_id: number; m: number }[]) {
+    out.set(r.task_id, r.m)
+  }
+  return out
 }
