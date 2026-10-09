@@ -5,6 +5,7 @@ import * as tasks from './db/tasks'
 import * as longTasks from './db/longTasks'
 import * as events from './db/events'
 import * as interop from './db/interop'
+import * as learn from './db/learn'
 import { getAllSettings, setSetting, type SettingsKey } from './db/settings'
 
 export function registerIpc(db: DatabaseSync): void {
@@ -40,4 +41,22 @@ export function registerIpc(db: DatabaseSync): void {
   ipcMain.handle('settings:getAll', () => getAllSettings(db))
   ipcMain.handle('settings:set', (_e, key: SettingsKey, value: unknown) =>
     setSetting(db, key, value as never))
+
+  // ---------- M3-1 自我学习 ----------
+  ipcMain.handle('learn:listItems', () => learn.listLearnItems(db))
+  ipcMain.handle('learn:createItem', (_e, input: learn.LearnItemInput) => learn.createLearnItem(db, input))
+  ipcMain.handle('learn:updateItem', (_e, id: number, patch: learn.LearnItemPatch) =>
+    learn.updateLearnItem(db, id, patch))
+  ipcMain.handle('learn:deleteItem', (_e, id: number) => learn.deleteLearnItem(db, id))
+  ipcMain.handle('learn:setProgress', (_e, id: number, doneUnits: number) =>
+    learn.setLearnProgress(db, id, doneUnits))
+  ipcMain.handle('learn:listNotes', (_e, itemId: number) => learn.listNotes(db, itemId))
+  ipcMain.handle('learn:createNote', (_e, itemId: number, content: string) =>
+    learn.createNote(db, itemId, content))
+  ipcMain.handle('learn:updateNote', (_e, id: number, content: string) => learn.updateNote(db, id, content))
+  ipcMain.handle('learn:deleteNote', (_e, id: number) => learn.deleteNote(db, id))
+  ipcMain.handle('learn:listSessions', (_e, from?: string, to?: string) => learn.listSessions(db, from, to))
+  ipcMain.handle('learn:createSession', (_e, itemId: number, date: string, minutes: number) =>
+    learn.createSession(db, itemId, date, minutes))
+  ipcMain.handle('learn:deleteSession', (_e, id: number) => learn.deleteSession(db, id))
 }

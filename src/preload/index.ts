@@ -30,6 +30,21 @@ const api = {
   settings: {
     getAll: (): Promise<unknown> => ipcRenderer.invoke('settings:getAll'),
     set: (key: string, value: unknown): Promise<unknown> => ipcRenderer.invoke('settings:set', key, value)
+  },
+  learn: {
+    listItems: (): Promise<unknown> => ipcRenderer.invoke('learn:listItems'),
+    createItem: (input: unknown): Promise<unknown> => ipcRenderer.invoke('learn:createItem', input),
+    updateItem: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('learn:updateItem', id, patch),
+    removeItem: (id: number): Promise<unknown> => ipcRenderer.invoke('learn:deleteItem', id),
+    setProgress: (id: number, doneUnits: number): Promise<unknown> => ipcRenderer.invoke('learn:setProgress', id, doneUnits),
+    listNotes: (itemId: number): Promise<unknown> => ipcRenderer.invoke('learn:listNotes', itemId),
+    createNote: (itemId: number, content: string): Promise<unknown> => ipcRenderer.invoke('learn:createNote', itemId, content),
+    updateNote: (id: number, content: string): Promise<unknown> => ipcRenderer.invoke('learn:updateNote', id, content),
+    removeNote: (id: number): Promise<unknown> => ipcRenderer.invoke('learn:deleteNote', id),
+    listSessions: (from?: string, to?: string): Promise<unknown> => ipcRenderer.invoke('learn:listSessions', from, to),
+    createSession: (itemId: number, date: string, minutes: number): Promise<unknown> =>
+      ipcRenderer.invoke('learn:createSession', itemId, date, minutes),
+    removeSession: (id: number): Promise<unknown> => ipcRenderer.invoke('learn:deleteSession', id)
   }
 }
 

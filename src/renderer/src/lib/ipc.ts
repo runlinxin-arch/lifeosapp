@@ -1,5 +1,6 @@
 import type {
-  Event, EventInput, EventPatch, LongTask, LongTaskPatch, MarkFromSourceInput,
+  Event, EventInput, EventPatch, LearnItem, LearnItemInput, LearnItemPatch,
+  LearnNote, LearnSession, LongTask, LongTaskPatch, MarkFromSourceInput,
   ModuleKey, Occurrence, Priority, Task
 } from '@shared/types'
 import type { Settings, SettingsKey } from '@shared/settings'
@@ -45,6 +46,20 @@ interface LifeosApi {
   settings: {
     getAll(): Promise<Settings>
     set<K extends SettingsKey>(key: K, value: Settings[K]): Promise<Settings>
+  }
+  learn: {
+    listItems(): Promise<LearnItem[]>
+    createItem(input: LearnItemInput): Promise<LearnItem>
+    updateItem(id: number, patch: LearnItemPatch): Promise<LearnItem>
+    removeItem(id: number): Promise<void>
+    setProgress(id: number, doneUnits: number): Promise<LearnItem>
+    listNotes(itemId: number): Promise<LearnNote[]>
+    createNote(itemId: number, content: string): Promise<LearnNote>
+    updateNote(id: number, content: string): Promise<LearnNote>
+    removeNote(id: number): Promise<void>
+    listSessions(from?: string, to?: string): Promise<LearnSession[]>
+    createSession(itemId: number, date: string, minutes: number): Promise<LearnSession>
+    removeSession(id: number): Promise<void>
   }
 }
 
