@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { openDb } from '../src/main/db'
-import { listProjects, getProject, createProject, updateProject, deleteProject, projectStats, listProjectStats } from '../src/main/db/dev'
+import {
+  listProjects, getProject, createProject, updateProject, deleteProject, projectStats, listProjectStats,
+  listDevTasks, createDevTask, updateDevTask, deleteDevTask, moveDevTask
+} from '../src/main/db/dev'
 import { listRange } from '../src/main/db/longTasks'
 
 let db: ReturnType<typeof openDb>
@@ -151,5 +154,123 @@ describe('项目统计', () => {
   it('listProjectStats 覆盖无任务的项目', () => {
     const p = createProject(db, { name: 'A' })
     expect(listProjectStats(db).get(p.id)).toEqual({ taskTotal: 0, taskDone: 0, openBugs: 0, minutes: 0 })
+  })
+})
+
+describe('看板数据层', () => {
+  it('新任务追加到目标列末尾', () => {
+    const p = createProject(db, { name: 'A' })
+    createDevTask(db, { projectId: p.id, title: 'T1' })
+    createDevTask(db, { projectId: p.id, title: 'T2' })
+    expect(listDevTasks(db, p.id).map((t) => [t.title, t.column_name, t.position]))
+      .toEqual([['T1', 'todo', 0], ['T2', 'todo', 1]])
+  })
+
+  it('可指定列、优先级与起止日期', () => {
+    const p = createProject(db, { name: 'A' })
+    const t = createDevTask(db, {
+      projectId: p.id, title: 'T', column: 'doing', priority: 'high',
+      startDate: '2026-10-01', dueDate: '2026-10-20'
+    })
+    expect(t).toMatchObject({
+      column_name: 'doing', priority: 'high', start_date: '2026-10-01', due_date: '2026-10-20'
+    })
+  })
+
+  it('列表按 待办 → 进行中 → 已完成，列内按 position', () => {
+    const p = createProject(db, { name: 'A' })
+    createDevTask(db, { projectId: p.id, title: 'A', column: 'done' })
+    createDevTask(db, { projectId: p.id, title: 'B', column: 'todo' })
+    createDevTask(db, { projectId: p.id, title: 'C', column: 'doing' })
+    expect(listDevTasks(db, p.id).map((t) => t.title)).toEqual(['B', 'C', 'A'])
+  })
+
+  it('跨列移动后位置持久（重新查询仍正确）', () => {
+    const p = createProject(db, { name: 'A' })
+    const t1 = createDevTask(db, { projectId: p.id, title: 'T1' })
+    createDevTask(db, { projectId: p.id, title: 'T2' })
+    createDevTask(db, { projectId: p.id, title: 'T3' })
+    moveDevTask(db, t1.id, 'doing', 0)
+
+    expect(listDevTasks(db, p.id).map((t) => [t.title, t.column_name, t.position])).toEqual([
+      ['T2', 'todo', 0], ['T3', 'todo', 1], ['T1', 'doing', 0]
+    ])
+  })
+
+  it('列内重排持久', () => {
+    const p = createProject(db, { name: 'A' })
+    const t1 = createDevTask(db, { projectId: p.id, title: 'T1' })
+    createDevTask(db, { projectId: p.id, title: 'T2' })
+    createDevTask(db, { projectId: p.id, title: 'T3' })
+    moveDevTask(db, t1.id, 'todo', 2)
+    expect(listDevTasks(db, p.id).filter((t) => t.column_name === 'todo').map((t) => t.title))
+      .toEqual(['T2', 'T3', 'T1'])
+  })
+
+  it('移动后两列的 position 都是连续 0..n-1', () => {
+    const p = createProject(db, { name: 'A' })
+    const t1 = createDevTask(db, { projectId: p.id, title: 'T1' })
+    createDevTask(db, { projectId: p.id, title: 'T2' })
+    createDevTask(db, { projectId: p.id, title: 'T3' })
+    moveDevTask(db, t1.id, 'done', 0)
+    const board = listDevTasks(db, p.id)
+    const todo = board.filter((t) => t.column_name === 'todo')
+    expect(todo.map((t) => t.position)).toEqual([0, 1])
+  })
+
+  it('删除任务后原列重新编号不留空洞', () => {
+    const p = createProject(db, { name: 'A' })
+    createDevTask(db, { projectId: p.id, title: 'T1' })
+    const t2 = createDevTask(db, { projectId: p.id, title: 'T2' })
+    createDevTask(db, { projectId: p.id, title: 'T3' })
+    deleteDevTask(db, t2.id)
+    expect(listDevTasks(db, p.id).map((t) => [t.title, t.position])).toEqual([['T1', 0], ['T3', 1]])
+  })
+
+  it('移动不存在的任务报错', () => {
+    const p = createProject(db, { name: 'A' })
+    createDevTask(db, { projectId: p.id, title: 'T' })
+    expect(() => moveDevTask(db, 999, 'doing', 0)).toThrow('not found')
+  })
+
+  it('非法列被拒绝', () => {
+    const p = createProject(db, { name: 'A' })
+    expect(() => createDevTask(db, { projectId: p.id, title: 'T', column: 'review' as never })).toThrow('看板列')
+  })
+
+  it('任务标题为空被拒绝', () => {
+    const p = createProject(db, { name: 'A' })
+    expect(() => createDevTask(db, { projectId: p.id, title: '  ' })).toThrow('任务标题不能为空')
+  })
+
+  it('给不存在的项目建任务报错', () => {
+    expect(() => createDevTask(db, { projectId: 999, title: 'T' })).toThrow('not found')
+  })
+
+  it('更新任务为合并语义', () => {
+    const p = createProject(db, { name: 'A' })
+    const t = createDevTask(db, { projectId: p.id, title: 'T', priority: 'high' })
+    const u = updateDevTask(db, t.id, { title: 'T2' })
+    expect(u).toMatchObject({ title: 'T2', priority: 'high' })
+  })
+
+  it('更新截止日期早于开始日期被拒绝', () => {
+    const p = createProject(db, { name: 'A' })
+    const t = createDevTask(db, { projectId: p.id, title: 'T', startDate: '2026-10-10' })
+    expect(() => updateDevTask(db, t.id, { dueDate: '2026-10-01' })).toThrow('截止日期')
+  })
+
+  it('不同项目的看板互不可见', () => {
+    const a = createProject(db, { name: 'A' })
+    const b = createProject(db, { name: 'B' })
+    createDevTask(db, { projectId: a.id, title: 'A 的任务' })
+    expect(listDevTasks(db, b.id)).toHaveLength(0)
+  })
+
+  it('删除项目会连带删除看板任务', () => {
+    const p = createProject(db, { name: 'A' })
+    createDevTask(db, { projectId: p.id, title: 'T' })
+    deleteProject(db, p.id)
+    expect(listDevTasks(db, p.id)).toHaveLength(0)
   })
 })
