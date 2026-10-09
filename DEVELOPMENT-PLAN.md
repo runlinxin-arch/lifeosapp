@@ -25,6 +25,8 @@
   - M4-2 验收记录：[docs/plans/2026-10-09-m4-2-acceptance.md](./docs/plans/2026-10-09-m4-2-acceptance.md)
   - M4-3 详细计划（游戏娱乐）：[docs/plans/2026-10-09-m4-3-entertainment.md](./docs/plans/2026-10-09-m4-3-entertainment.md)
   - M4-3 验收记录：[docs/plans/2026-10-09-m4-3-acceptance.md](./docs/plans/2026-10-09-m4-3-acceptance.md)
+  - M4-4 验收记录（「今天」页卡片）：[docs/plans/2026-10-09-m4-4-acceptance.md](./docs/plans/2026-10-09-m4-4-acceptance.md)
+  - **M4 总验收记录：[docs/plans/2026-10-09-m4-acceptance.md](./docs/plans/2026-10-09-m4-acceptance.md)**
 
 ## 技术栈（全里程碑共用）
 
