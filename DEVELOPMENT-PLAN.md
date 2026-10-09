@@ -8,6 +8,9 @@
   - M2 验收记录：[docs/plans/2026-09-30-m2-acceptance.md](./docs/plans/2026-09-30-m2-acceptance.md)
   - M3 总览计划：[docs/plans/2026-10-09-m3-overview.md](./docs/plans/2026-10-09-m3-overview.md)
   - M3-1 详细计划（共享底座 + 自我学习）：[docs/plans/2026-10-09-m3-1-learning.md](./docs/plans/2026-10-09-m3-1-learning.md)
+  - M3-2 详细计划（开发模块）：[docs/plans/2026-10-09-m3-2-dev.md](./docs/plans/2026-10-09-m3-2-dev.md)
+  - M3-2 验收记录：[docs/plans/2026-10-09-m3-2-acceptance.md](./docs/plans/2026-10-09-m3-2-acceptance.md)
+  - M3-3 详细计划（设计灵感）：[docs/plans/2026-10-09-m3-3-inspiration.md](./docs/plans/2026-10-09-m3-3-inspiration.md)
 
 ## 技术栈（全里程碑共用）
 
