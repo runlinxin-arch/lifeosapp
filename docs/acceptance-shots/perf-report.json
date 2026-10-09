@@ -1,0 +1,50 @@
+{
+  "ipc": {
+    "insp.list() 1000 条": 27.9,
+    "insp.listTags()": 11.1,
+    "insp.listBoards()": 0.8,
+    "insp.boardStats()": 1.8,
+    "learn.listItems() 300 条": 7.7,
+    "learn.listSessions() 2000 条": 26.3,
+    "dev.listProjects() 21 个": 1,
+    "dev.listProjectStats()": 4.1,
+    "dev.listAllTasks() 800 条": 66.4,
+    "dev.listSessions() 800 条": 10.3,
+    "dev.listSnippets()": 0.4,
+    "dev.listNotes()": 0.1,
+    "dev.listTasks(压力项目 300 条)": 7.1,
+    "dev.listBugs(压力项目)": 0.5
+  },
+  "ui": {
+    "inspiration": 817.6,
+    "devList": 310.6,
+    "kanban300": 321.4,
+    "learning": 216.7,
+    "today": 57.3
+  },
+  "interact": {
+    "keywordFilter": 134.4,
+    "clearFilter": 702.2,
+    "tagFilter": 189.7,
+    "kanbanMove": 296.8,
+    "inspScroll": {
+      "total": 332.6,
+      "avg": 8.3,
+      "p95": 17,
+      "worst": 18.6,
+      "frames": 40
+    }
+  },
+  "mem": {
+    "afterInspiration": 51,
+    "final": 51
+  },
+  "dom": {
+    "inspirationCards": 5000,
+    "inspirationNodes": 39708,
+    "devProjects": 105,
+    "kanbanCards": 1500,
+    "kanbanNodes": 25426,
+    "inspTotal": 5000
+  }
+}
