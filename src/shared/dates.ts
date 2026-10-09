@@ -26,6 +26,12 @@ export function formatCn(dateStr: string): string {
   return `${Number(m)}/${Number(d)}`
 }
 
+/** 'YYYY-MM-DD' → '周一' … '周日' */
+export function weekdayCn(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00`).getDay()
+  return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d]
+}
+
 /** 'YYYY-MM-DD HH:MM' → Date（本地时区） */
 export function parseLocal(s: string): Date {
   return new Date(`${s.slice(0, 10)}T${s.slice(11, 16)}:00`)

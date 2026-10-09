@@ -59,4 +59,10 @@ describe('日期时间助手', () => {
   it('addMonthsClamped 处理闰年 2 月', () => {
     expect(addMonthsClamped('2024-01-31', 1)).toBe('2024-02-29')
   })
+
+  it('weekdayCn 返回中文星期（周一为一周第二天）', () => {
+    expect(sharedDates.weekdayCn('2026-10-09')).toBe('周五')
+    expect(sharedDates.weekdayCn('2026-10-05')).toBe('周一')
+    expect(sharedDates.weekdayCn('2026-10-11')).toBe('周日')
+  })
 })
