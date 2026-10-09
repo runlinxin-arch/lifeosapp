@@ -318,3 +318,54 @@ describe('健身模块迁移 v6', () => {
     db.close()
   })
 })
+
+describe('饮食模块迁移 v7', () => {
+  it('新库含两张饮食表', () => {
+    const db = openDb(dbFile)
+    expect(version(db)).toBe(LATEST_VERSION)
+    expect(columns(db, 'meals')).toEqual(['id', 'date', 'type', 'items', 'created_at', 'updated_at'])
+    expect(columns(db, 'meal_plans')).toContain('content')
+    db.close()
+  })
+
+  it('v6 老库能平滑升级到 v7 且健身数据保留', () => {
+    const raw = openDb(dbFile)
+    raw.exec('DROP TABLE meals')
+    raw.exec('DROP TABLE meal_plans')
+    raw.exec('PRAGMA user_version = 6')
+    raw.prepare("INSERT INTO workout_plans (name) VALUES ('M4-1 老计划')").run()
+    raw.close()
+
+    const db = openDb(dbFile)
+    expect(version(db)).toBe(LATEST_VERSION)
+    expect(columns(db, 'meals')).toContain('items')
+    expect(db.prepare('SELECT COUNT(*) c FROM workout_plans').get()).toEqual({ c: 1 })
+    db.close()
+  })
+
+  it('同一天同一餐只允许一条记录', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO meals (date, type) VALUES ('2026-10-09', 'lunch')").run()
+    expect(() => db.prepare("INSERT INTO meals (date, type) VALUES ('2026-10-09', 'lunch')").run()).toThrow()
+    db.prepare("INSERT INTO meals (date, type) VALUES ('2026-10-09', 'dinner')").run()
+    db.close()
+  })
+
+  it('饮食计划的 (date, type) 同样唯一', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO meal_plans (date, type, content) VALUES ('2026-10-10', 'breakfast', '燕麦')").run()
+    expect(() =>
+      db.prepare("INSERT INTO meal_plans (date, type, content) VALUES ('2026-10-10', 'breakfast', '包子')").run()
+    ).toThrow()
+    db.close()
+  })
+
+  it('items 与 content 默认值正确', () => {
+    const db = openDb(dbFile)
+    db.prepare("INSERT INTO meals (date, type) VALUES ('2026-10-09', 'snack')").run()
+    expect(db.prepare('SELECT items FROM meals').get()).toEqual({ items: '[]' })
+    db.prepare("INSERT INTO meal_plans (date, type) VALUES ('2026-10-10', 'snack')").run()
+    expect(db.prepare('SELECT content FROM meal_plans').get()).toEqual({ content: '' })
+    db.close()
+  })
+})

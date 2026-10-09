@@ -368,3 +368,59 @@ export interface BodyMetricInput {
   weight: number
   bodyFat?: number | null
 }
+
+// ---------- M4-2 饮食 ----------
+
+/** 餐次：早 / 午 / 晚 / 加餐 */
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+
+/** 单个食物条目 */
+export interface MealItem {
+  name: string
+  /** 千卡，≥0 */
+  calories: number
+  /** 蛋白质（g），≥0 */
+  protein: number
+  /** 碳水（g），≥0 */
+  carbs: number
+  /** 脂肪（g），≥0 */
+  fat: number
+}
+
+/** 四项营养合计 */
+export interface Nutrition {
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+}
+
+export interface Meal {
+  id: number
+  date: string
+  type: MealType
+  items: MealItem[]
+  created_at: string
+  updated_at: string
+}
+
+export interface MealInput {
+  date: string
+  type: MealType
+  items?: MealItem[]
+}
+
+export interface MealPlan {
+  id: number
+  date: string
+  type: MealType
+  content: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MealPlanInput {
+  date: string
+  type: MealType
+  content: string
+}

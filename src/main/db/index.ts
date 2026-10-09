@@ -251,6 +251,35 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_body_metrics_date ON body_metrics(date);
       `)
     }
+  },
+  {
+    // v7 —— M4-2：饮食（餐次记录 / 饮食计划）
+    version: 7,
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS meals (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          type TEXT NOT NULL,
+          items TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_meals_date_type ON meals(date, type);
+        CREATE INDEX IF NOT EXISTS idx_meals_date ON meals(date);
+
+        CREATE TABLE IF NOT EXISTS meal_plans (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          type TEXT NOT NULL,
+          content TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_meal_plans_date_type ON meal_plans(date, type);
+        CREATE INDEX IF NOT EXISTS idx_meal_plans_date ON meal_plans(date);
+      `)
+    }
   }
 ]
 
