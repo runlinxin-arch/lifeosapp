@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { LearnItem, LearnItemInput, LearnItemPatch, LearnNote, LearnSession } from '@shared/types'
 import { api } from '../lib/ipc'
+import { LatestGuard } from '../lib/latest'
 import { addDays, todayStr } from '../lib/dates'
 import { formatIpcError } from '../lib/errors'
 
@@ -38,15 +39,28 @@ export const useLearnStore = create<LearnState>((set, get) => {
     }
   }
 
-  const fetchItems = async (): Promise<void> => set({ items: await api.learn.listItems() })
+  // 并发刷新时只认最新一次请求，避免慢响应把新数据覆盖回旧值
+  const itemsGuard = new LatestGuard()
+  const sessionsGuard = new LatestGuard()
+  const notesGuard = new LatestGuard()
+
+  const fetchItems = async (): Promise<void> => {
+    const isLatest = itemsGuard.begin()
+    const items = await api.learn.listItems()
+    if (isLatest()) set({ items })
+  }
 
   const fetchSessions = async (): Promise<void> => {
+    const isLatest = sessionsGuard.begin()
     const from = addDays(todayStr(), -400)
-    set({ sessions: await api.learn.listSessions(from, todayStr()) })
+    const sessions = await api.learn.listSessions(from, todayStr())
+    if (isLatest()) set({ sessions })
   }
 
   const fetchNotes = async (itemId: number | null): Promise<void> => {
-    set({ notes: itemId === null ? [] : await api.learn.listNotes(itemId) })
+    const isLatest = notesGuard.begin()
+    const notes = itemId === null ? [] : await api.learn.listNotes(itemId)
+    if (isLatest()) set({ notes })
   }
 
   return {

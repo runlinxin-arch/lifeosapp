@@ -12,7 +12,7 @@ const GROUPS: { label: string; items: { key: PageKey; icon: string; label: strin
     items: [
       { key: 'learning', icon: '📖', label: '自我学习' },
       { key: 'dev', icon: '💻', label: '开发' },
-      { key: 'inspiration', icon: '✨', label: '设计灵感', disabled: true }
+      { key: 'inspiration', icon: '✨', label: '设计灵感' }
     ]
   },
   {

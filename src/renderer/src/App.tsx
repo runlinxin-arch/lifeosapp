@@ -6,6 +6,7 @@ import { TodayPage } from './components/today/TodayPage'
 import { SchedulePage } from './components/schedule/SchedulePage'
 import { LearnPage } from './components/learn/LearnPage'
 import { DevPage } from './components/dev/DevPage'
+import { InspirationPage } from './components/inspiration/InspirationPage'
 
 export default function App(): JSX.Element {
   const [page, setPage] = useState<PageKey>('today')
@@ -20,6 +21,8 @@ export default function App(): JSX.Element {
         return <LearnPage />
       case 'dev':
         return <DevPage />
+      case 'inspiration':
+        return <InspirationPage />
       default:
         return <div className="p-4 text-[var(--muted)]">该模块将在后续里程碑开放</div>
     }

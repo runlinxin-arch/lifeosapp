@@ -6,6 +6,7 @@ import type {
 } from '@shared/types'
 import type { SnippetFilter } from '@shared/snippetFilter'
 import { api, type ProjectStats } from '../lib/ipc'
+import { LatestGuard } from '../lib/latest'
 import { formatIpcError } from '../lib/errors'
 
 export type DevView = 'projects' | 'snippets' | 'notes'
@@ -71,14 +72,29 @@ export const useDevStore = create<DevState>((set, get) => {
     }
   }
 
+  // 并发刷新时只认最新一次请求，避免慢响应把新数据覆盖回旧值
+  const projectsGuard = new LatestGuard()
+  const sessionsGuard = new LatestGuard()
+  const allTasksGuard = new LatestGuard()
+  const detailGuard = new LatestGuard()
+
   const fetchProjects = async (): Promise<void> => {
+    const isLatest = projectsGuard.begin()
     const [projects, statsPairs] = await Promise.all([api.dev.listProjects(), api.dev.listProjectStats()])
-    set({ projects, stats: new Map(statsPairs) })
+    if (isLatest()) set({ projects, stats: new Map(statsPairs) })
   }
   const fetchSnippets = async (): Promise<void> => set({ snippets: await api.dev.listSnippets() })
   const fetchNotes = async (): Promise<void> => set({ notes: await api.dev.listNotes() })
-  const fetchSessions = async (): Promise<void> => set({ sessions: await api.dev.listSessions() })
-  const fetchAllTasks = async (): Promise<void> => set({ allTasks: await api.dev.listAllTasks() })
+  const fetchSessions = async (): Promise<void> => {
+    const isLatest = sessionsGuard.begin()
+    const sessions = await api.dev.listSessions()
+    if (isLatest()) set({ sessions })
+  }
+  const fetchAllTasks = async (): Promise<void> => {
+    const isLatest = allTasksGuard.begin()
+    const allTasks = await api.dev.listAllTasks()
+    if (isLatest()) set({ allTasks })
+  }
 
   /** 重新拉取当前选中项目的看板与 Bug */
   const fetchProjectDetail = async (): Promise<void> => {
@@ -87,8 +103,10 @@ export const useDevStore = create<DevState>((set, get) => {
       set({ tasks: [], bugs: [] })
       return
     }
+    const isLatest = detailGuard.begin()
     const [tasks, bugs] = await Promise.all([api.dev.listTasks(id), api.dev.listBugs(id)])
-    set({ tasks, bugs })
+    // 期间若已切到别的项目，这批结果作废
+    if (isLatest() && get().selectedProjectId === id) set({ tasks, bugs })
   }
 
   /** 项目结构或统计口径变化后统一刷新 */
