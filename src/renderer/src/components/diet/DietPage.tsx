@@ -5,6 +5,8 @@ import { addDays, formatCn, weekdayCn } from '@shared/dates'
 import { useDietStore } from '../../stores/dietStore'
 import { MealCard } from './MealCard'
 import { NutritionPanel } from './NutritionPanel'
+import { MealPlanStrip } from './MealPlanStrip'
+import { MealPlanEditor } from './MealPlanEditor'
 
 const AMBER = '#f39c12'
 
@@ -57,11 +59,13 @@ export function DietPage(): JSX.Element {
       )}
 
       <div className="flex-1 px-4 pb-4 overflow-auto">
+        <MealPlanStrip today={today} date={date} meals={meals} plans={plans} onSelect={setDate} />
+
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-3">
             {MEAL_TYPES.map((type) => (
               <MealCard
-                key={type}
+                key={`${date}-${type}`}
                 date={date}
                 type={type}
                 meal={mealByType(meals, date, type)}
@@ -71,6 +75,7 @@ export function DietPage(): JSX.Element {
           </div>
           <div className="flex flex-col gap-3">
             <NutritionPanel date={date} meals={meals} />
+            <MealPlanEditor key={date} date={date} plans={plans} />
           </div>
         </div>
       </div>

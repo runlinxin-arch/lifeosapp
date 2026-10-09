@@ -21,6 +21,8 @@
   - M4 总览计划：[docs/plans/2026-10-09-m4-overview.md](./docs/plans/2026-10-09-m4-overview.md)
   - M4-1 详细计划（健身）：[docs/plans/2026-10-09-m4-1-fitness.md](./docs/plans/2026-10-09-m4-1-fitness.md)
   - M4-1 验收记录：[docs/plans/2026-10-09-m4-1-acceptance.md](./docs/plans/2026-10-09-m4-1-acceptance.md)
+  - M4-2 详细计划（饮食）：[docs/plans/2026-10-09-m4-2-diet.md](./docs/plans/2026-10-09-m4-2-diet.md)
+  - M4-2 验收记录：[docs/plans/2026-10-09-m4-2-acceptance.md](./docs/plans/2026-10-09-m4-2-acceptance.md)
 
 ## 技术栈（全里程碑共用）
 
