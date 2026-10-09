@@ -3,7 +3,7 @@ import type { Meal, MealInput, MealPlan, MealPlanInput, MealType } from '@shared
 import { isMealType, mealItemsToJson, parseMealItems } from '@shared/dietContent'
 import { assertDateStr, assertNonEmpty } from './validate'
 
-export type { MealInput, MealPlanInput } from '@shared/types'
+export type { MealInput, MealPlanInput, MealType } from '@shared/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const asMeal = (r: any): Meal => ({ ...r, items: parseMealItems(String(r.items ?? '[]')) })
