@@ -67,6 +67,7 @@ await evaluate(`
   window.__dlg = () => document.querySelector('.fixed.inset-0');
   window.__dlgBtn = (t) => [...__dlg().querySelectorAll('button')].find(b => b.textContent.trim() === t);
   window.__dlgInput = (hint) => [...__dlg().querySelectorAll('input,textarea')].find(i => i.placeholder.includes(hint));
+  window.__dlgSelect = () => __dlg().querySelector('select');
   true;
 `)
 
@@ -332,6 +333,170 @@ const starDetail = await evaluate(`
 check('设为精选后「精选」筛选只留该条', starOk && starDetail.only, JSON.stringify(starDetail))
 await evaluate(`__btn('清除筛选')?.click(); true`)
 await waitFor(`${COUNT} === '4'`)
+
+// ============================================================
+// 五、T10 画板视图
+// ============================================================
+await evaluate(`__btn('画板')?.click(); true`)
+await waitFor(`__main().innerText.includes('新建画板')`)
+check('画板视图渲染', await evaluate(`__main().innerText.includes('还没有画板')`))
+
+await evaluate(`
+  (() => {
+    const el = [...__main().querySelectorAll('input')].find(i => i.placeholder.includes('新建画板'));
+    __setInput(el, '【验收】配色板');
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    return true;
+  })()
+`)
+const boardCreated = await waitFor(`__main().innerText.includes('【验收】配色板') && __main().innerText.includes('0 条')`)
+check('新建画板后出现卡片且条数为 0', boardCreated)
+
+// 把图片灵感归入画板（通过编辑弹窗）
+await evaluate(`__btn('瀑布流')?.click(); true`)
+await waitFor(`__main().innerText.includes('＋ 捕获')`)
+await evaluate(`
+  (() => {
+    const card = [...__main().querySelectorAll('[data-insp-card]')].find(c => c.innerText.includes('【验收】贴图灵感'));
+    if (!card) return 'card-not-found';
+    // 点正文按钮打开编辑弹窗
+    [...card.querySelectorAll('button')].find(b => b.textContent.includes('【验收】贴图灵感')).click();
+    return 'ok';
+  })()
+`)
+await waitFor(`__dialogOpen()`)
+check('点卡片打开编辑弹窗', await evaluate(`__dialogOpen()`))
+
+await evaluate(`
+  (() => {
+    const sel = __dlg().querySelector('select');
+    const opt = [...sel.options].find(o => o.text.includes('【验收】配色板'));
+    if (!opt) return 'board-option-missing';
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, opt.value);
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    __dlgBtn('保存').click();
+    return 'saved';
+  })()
+`)
+await waitFor(`!__dialogOpen()`, 6000)
+const assigned = await waitFor(`
+  (() => {
+    const card = [...__main().querySelectorAll('[data-insp-card]')].find(c => c.innerText.includes('【验收】贴图灵感'));
+    return !!card && card.innerText.includes('配色板');
+  })()
+`, 6000)
+check('灵感归入画板后卡片显示画板名', assigned)
+
+await evaluate(`__btn('画板')?.click(); true`)
+await waitFor(`__main().innerText.includes('【验收】配色板')`)
+const boardStat = await evaluate(`
+  (() => {
+    const t = __main().innerText;
+    const m = /【验收】配色板\\s*([\\s\\S]*?)(\\d+) 条/.exec(t);
+    return { hasBoard: t.includes('【验收】配色板'), count: m ? m[2] : null, cover: document.querySelectorAll('img[src^="lifeos-image"]').length };
+  })()
+`)
+check('画板卡片显示条数且封面为该灵感图片', boardStat.count === '1' && boardStat.cover >= 1, JSON.stringify(boardStat))
+await shot('22-insp-boards')
+
+// 进入画板看该画板的瀑布流
+await evaluate(`
+  (() => {
+    const card = [...__main().querySelectorAll('button')].find(b => b.textContent.trim() === '【验收】配色板');
+    card?.click();
+    return true;
+  })()
+`)
+await waitFor(`__main().innerText.includes('全部灵感')`, 6000)
+const inBoard = await evaluate(`
+  (() => {
+    const cards = [...__main().querySelectorAll('[data-insp-card]')];
+    return { n: cards.length, only: cards.length === 1 && cards[0].innerText.includes('贴图灵感'), count: ${COUNT} };
+  })()
+`)
+check('进入画板只看该画板的灵感', inBoard.only && inBoard.count === '1', JSON.stringify(inBoard))
+
+await evaluate(`__btn('← 全部灵感')?.click(); true`)
+await waitFor(`${COUNT} === '4'`)
+
+// 重命名画板
+await evaluate(`__btn('画板')?.click(); true`)
+await waitFor(`__main().innerText.includes('【验收】配色板')`)
+await evaluate(`
+  (() => {
+    const btn = [...__main().querySelectorAll('button')].find(b => b.textContent.trim() === '改');
+    btn?.click();
+    return true;
+  })()
+`)
+await sleep(400)
+await evaluate(`
+  (() => {
+    const input = [...__main().querySelectorAll('input')].find(i => i.value === '【验收】配色板');
+    if (!input) return 'no-input';
+    __setInput(input, '【验收】配色板V2');
+    [...__main().querySelectorAll('button')].find(b => b.textContent.trim() === '存')?.click();
+    return 'renamed';
+  })()
+`)
+const renamed = await waitFor(`__main().innerText.includes('配色板V2')`, 6000)
+check('重命名画板', renamed)
+
+// 删除画板 → 灵感保留、只解除归属
+await evaluate(`
+  (() => {
+    const btn = [...__main().querySelectorAll('button')].find(b => b.title && b.title.includes('删除画板'));
+    btn?.click();
+    return true;
+  })()
+`)
+const boardGone = await waitFor(`!__main().innerText.includes('配色板V2')`, 6000)
+const inspKept = await evaluate(`(async () => (await window.lifeos.insp.list()).length)()`)
+check('删除画板后灵感条目保留', boardGone && inspKept === 4, `画板已删=${boardGone}, 灵感 ${inspKept} 条`)
+
+await evaluate(`__btn('瀑布流')?.click(); true`)
+await waitFor(`${COUNT} === '4'`)
+const unassigned = await evaluate(`
+  (() => {
+    const card = [...__main().querySelectorAll('[data-insp-card]')].find(c => c.innerText.includes('【验收】贴图灵感'));
+    return { boardGone: !!card && !card.innerText.includes('配色板') };
+  })()
+`)
+check('灵感解除归属后不再显示画板名', unassigned.boardGone)
+
+// ============================================================
+// 六、编辑与删除（含图片文件清理）
+// ============================================================
+await evaluate(`
+  (() => {
+    const card = [...__main().querySelectorAll('[data-insp-card]')].find(c => c.innerText.includes('【验收】第三条灵感'));
+    [...card.querySelectorAll('button')].find(b => b.textContent.includes('【验收】第三条灵感')).click();
+    return true;
+  })()
+`)
+await waitFor(`__dialogOpen()`)
+await evaluate(`
+  (() => {
+    __setInput(__dlgInput('正文'), '【验收】第三条灵感（已改）');
+    __dlgBtn('保存').click();
+    return true;
+  })()
+`)
+const edited = await waitFor(`!__dialogOpen() && __main().innerText.includes('（已改）')`, 6000)
+check('编辑灵感正文生效', edited)
+
+const filesBefore = IMAGE_FILES().length
+await evaluate(`
+  (() => {
+    const card = [...__main().querySelectorAll('[data-insp-card]')].find(c => c.innerText.includes('【验收】贴图灵感'));
+    [...card.querySelectorAll('button')].find(b => b.textContent.trim() === '✕').click();
+    return true;
+  })()
+`)
+const deleted = await waitFor(`!__main().innerText.includes('【验收】贴图灵感') && ${COUNT} === '3'`, 6000)
+const filesAfter = IMAGE_FILES().length
+check('删除灵感后条目消失且图片文件同步清理',
+  deleted && filesAfter === filesBefore - 1, `文件 ${filesBefore} → ${filesAfter}`)
 
 console.log('')
 console.log(`===== ${results.filter((r) => r.pass).length}/${results.length} 通过 =====`)
