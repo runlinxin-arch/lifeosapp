@@ -1,0 +1,155 @@
+import { describe, it, expect, beforeEach } from 'vitest'
+import { openDb } from '../src/main/db'
+import { listProjects, getProject, createProject, updateProject, deleteProject, projectStats, listProjectStats } from '../src/main/db/dev'
+import { listRange } from '../src/main/db/longTasks'
+
+let db: ReturnType<typeof openDb>
+beforeEach(() => { db = openDb(':memory:') })
+
+/** 统计类用例直接建夹具，避免依赖后续任务才实现的任务/Bug/计时函数 */
+function seedBoard(projectId: number): void {
+  db.prepare("INSERT INTO dev_tasks (project_id, title, column_name, position) VALUES (?, 'T1', 'done', 0)").run(projectId)
+  db.prepare("INSERT INTO dev_tasks (project_id, title, column_name, position) VALUES (?, 'T2', 'todo', 0)").run(projectId)
+  db.prepare("INSERT INTO dev_tasks (project_id, title, column_name, position) VALUES (?, 'T3', 'doing', 0)").run(projectId)
+  const t1 = (db.prepare("SELECT id FROM dev_tasks WHERE project_id = ? AND title = 'T1'").get(projectId) as { id: number }).id
+  db.prepare("INSERT INTO bugs (project_id, title, status) VALUES (?, 'B1', 'open')").run(projectId)
+  db.prepare("INSERT INTO bugs (project_id, title, status) VALUES (?, 'B2', 'fixing')").run(projectId)
+  db.prepare("INSERT INTO bugs (project_id, title, status) VALUES (?, 'B3', 'fixed')").run(projectId)
+  db.prepare("INSERT INTO dev_sessions (task_id, started_at, ended_at, minutes) VALUES (?, '2026-10-09 09:00', '2026-10-09 10:00', 60)").run(t1)
+  db.prepare("INSERT INTO dev_sessions (task_id, started_at, ended_at, minutes) VALUES (?, '2026-10-09 10:00', '2026-10-09 10:30', 30)").run(t1)
+}
+
+describe('项目 CRUD', () => {
+  it('创建后可读回，默认值正确', () => {
+    const p = createProject(db, { name: 'LifeOS' })
+    expect(p).toMatchObject({ name: 'LifeOS', status: 'planned', description: '', start_date: null, end_date: null })
+    expect(getProject(db, p.id)?.name).toBe('LifeOS')
+  })
+
+  it('名称、状态、简介、起止日期可写入', () => {
+    const p = createProject(db, {
+      name: 'InfoRadar', status: 'in_progress', description: '信息聚合',
+      startDate: '2026-10-01', endDate: '2026-12-31'
+    })
+    expect(p).toMatchObject({
+      status: 'in_progress', description: '信息聚合',
+      start_date: '2026-10-01', end_date: '2026-12-31'
+    })
+  })
+
+  it('名称为空被拒绝，首尾空白被去掉', () => {
+    expect(() => createProject(db, { name: '   ' })).toThrow('项目名称不能为空')
+    expect(createProject(db, { name: '  LifeOS  ' }).name).toBe('LifeOS')
+    expect(listProjects(db)).toHaveLength(1)
+  })
+
+  it('非法状态被拒绝', () => {
+    expect(() => createProject(db, { name: 'x', status: 'archived' as never })).toThrow('状态')
+  })
+
+  it('两端日期都给出时校验顺序；单端可空', () => {
+    expect(() => createProject(db, { name: 'x', startDate: '2026-10-01' })).not.toThrow()
+    expect(() => createProject(db, { name: 'y', endDate: '2026-12-01' })).not.toThrow()
+    expect(() => createProject(db, { name: 'z', startDate: '2026-12-01', endDate: '2026-10-01' })).toThrow('结束日期')
+  })
+
+  it('非法日期格式被拒绝', () => {
+    expect(() => createProject(db, { name: 'x', startDate: '2026-9-1' })).toThrow('开始日期')
+    expect(() => createProject(db, { name: 'x', endDate: '2026-02-31' })).toThrow('结束日期')
+  })
+
+  it('更新是合并语义', () => {
+    const p = createProject(db, { name: 'A', description: '说明' })
+    const u = updateProject(db, p.id, { name: 'B' })
+    expect(u.name).toBe('B')
+    expect(u.description).toBe('说明')
+  })
+
+  it('可清空起止日期与简介', () => {
+    const p = createProject(db, { name: 'A', description: 'd', startDate: '2026-10-01', endDate: '2026-12-01' })
+    const u = updateProject(db, p.id, { description: '', startDate: null, endDate: null })
+    expect(u).toMatchObject({ description: '', start_date: null, end_date: null })
+  })
+
+  it('更新为空白名称被拒绝，原值不变', () => {
+    const p = createProject(db, { name: 'A' })
+    expect(() => updateProject(db, p.id, { name: '  ' })).toThrow('项目名称不能为空')
+    expect(getProject(db, p.id)!.name).toBe('A')
+  })
+
+  it('更新不存在的项目报错', () => {
+    expect(() => updateProject(db, 999, { name: 'x' })).toThrow('not found')
+  })
+
+  it('列表按 计划中 → 开发中 → 暂停 → 已完成 排序', () => {
+    createProject(db, { name: 'D', status: 'done' })
+    createProject(db, { name: 'B', status: 'in_progress' })
+    createProject(db, { name: 'A', status: 'planned' })
+    createProject(db, { name: 'C', status: 'paused' })
+    expect(listProjects(db).map((p) => p.name)).toEqual(['A', 'B', 'C', 'D'])
+  })
+
+  it('删除项目', () => {
+    const p = createProject(db, { name: 'A' })
+    deleteProject(db, p.id)
+    expect(getProject(db, p.id)).toBeNull()
+    expect(listProjects(db)).toHaveLength(0)
+  })
+
+  it('删除项目会清掉它的长期任务色块', () => {
+    const p = createProject(db, { name: 'A', startDate: '2026-10-01', endDate: '2026-12-01' })
+    db.prepare(`
+      INSERT INTO long_tasks (title, start_date, end_date, color, source_module, source_id)
+      VALUES ('A 开发', '2026-10-01', '2026-12-01', '#3498db', 'dev', ?)
+    `).run(p.id)
+    expect(listRange(db, '2026-01-01', '2027-01-01')).toHaveLength(1)
+    deleteProject(db, p.id)
+    expect(listRange(db, '2026-01-01', '2027-01-01')).toHaveLength(0)
+  })
+
+  it('删除项目不影响其它来源的长期任务', () => {
+    const p = createProject(db, { name: 'A' })
+    db.prepare(`
+      INSERT INTO long_tasks (title, start_date, end_date, color, source_module, source_id)
+      VALUES ('学习项', '2026-10-01', '2026-12-01', '#4ade80', 'learning', 7)
+    `).run()
+    deleteProject(db, p.id)
+    expect(listRange(db, '2026-01-01', '2027-01-01')).toHaveLength(1)
+  })
+})
+
+describe('项目统计', () => {
+  it('任务总数/已完成数/未修 Bug 数/累计时长', () => {
+    const p = createProject(db, { name: 'A' })
+    seedBoard(p.id)
+    expect(projectStats(db, p.id)).toEqual({ taskTotal: 3, taskDone: 1, openBugs: 2, minutes: 90 })
+  })
+
+  it('空项目的统计全为 0', () => {
+    const p = createProject(db, { name: 'A' })
+    expect(projectStats(db, p.id)).toEqual({ taskTotal: 0, taskDone: 0, openBugs: 0, minutes: 0 })
+  })
+
+  it('listProjectStats 一次返回所有项目的统计', () => {
+    const a = createProject(db, { name: 'A' })
+    const b = createProject(db, { name: 'B' })
+    seedBoard(a.id)
+    const stats = listProjectStats(db)
+    expect(stats.get(a.id)).toEqual({ taskTotal: 3, taskDone: 1, openBugs: 2, minutes: 90 })
+    expect(stats.get(b.id)).toEqual({ taskTotal: 0, taskDone: 0, openBugs: 0, minutes: 0 })
+  })
+
+  it('统计不串项目', () => {
+    const a = createProject(db, { name: 'A' })
+    const b = createProject(db, { name: 'B' })
+    db.prepare("INSERT INTO dev_tasks (project_id, title, column_name, position) VALUES (?, 'A1', 'done', 0)").run(a.id)
+    db.prepare("INSERT INTO bugs (project_id, title, status) VALUES (?, 'B1', 'open')").run(b.id)
+    expect(projectStats(db, a.id)).toMatchObject({ taskTotal: 1, taskDone: 1, openBugs: 0 })
+    expect(projectStats(db, b.id)).toMatchObject({ taskTotal: 0, taskDone: 0, openBugs: 1 })
+  })
+
+  it('listProjectStats 覆盖无任务的项目', () => {
+    const p = createProject(db, { name: 'A' })
+    expect(listProjectStats(db).get(p.id)).toEqual({ taskTotal: 0, taskDone: 0, openBugs: 0, minutes: 0 })
+  })
+})
