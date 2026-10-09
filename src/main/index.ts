@@ -4,6 +4,10 @@ import { ensureDataDir } from './db'
 import { startupOpen } from './backup'
 import { registerIpc } from './ipc'
 import { startReminders } from './reminders'
+import { registerImageProtocol, registerImageScheme } from './images'
+
+// 必须在 app ready 之前注册，否则 lifeos-image:// 会被当成普通 URL 拦掉
+registerImageScheme()
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -38,6 +42,8 @@ void app.whenReady().then(() => {
   ensureDataDir(dataDir)
   const { db, notice } = startupOpen(path.join(dataDir, 'app.db'), path.join(dataDir, 'backups'))
   registerIpc(db)
+  // 必须在窗口加载页面前挂上，否则首屏图片会 404
+  registerImageProtocol()
 
   let mainWindow: BrowserWindow | null = createWindow()
   const stopReminders = startReminders(db, () => mainWindow)

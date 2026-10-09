@@ -1,14 +1,18 @@
 import type {
-  Bug, BugInput, BugPatch, DevColumn, DevSession, DevTask, DevTaskInput, DevTaskPatch,
-  Event, EventInput, EventPatch, LearnItem, LearnItemInput, LearnItemPatch,
+  BoardInput, BoardPatch, Bug, BugInput, BugPatch, CaptureInput, DevColumn, DevSession, DevTask,
+  DevTaskInput, DevTaskPatch,
+  Event, EventInput, EventPatch, Inspiration, InspirationBoard, InspirationInput, InspirationPatch,
+  LearnItem, LearnItemInput, LearnItemPatch,
   LearnNote, LearnSession, LongTask, LongTaskPatch, MarkFromSourceInput,
   ModuleKey, Occurrence, Priority, Project, ProjectInput, ProjectPatch, Snippet, SnippetInput, SnippetPatch,
   Task, TechNote, TechNoteInput, TechNotePatch
 } from '@shared/types'
 import type { Settings, SettingsKey } from '@shared/settings'
 import type { SnippetFilter } from '@shared/snippetFilter'
+import type { InspirationFilter } from '@shared/inspirationFilter'
 
 export interface ProjectStats { taskTotal: number; taskDone: number; openBugs: number; minutes: number }
+export interface BoardStat { count: number; coverImage: string | null }
 
 export interface TaskPatch { title?: string; done?: boolean; priority?: Priority }
 export interface TaskInput { title: string; priority?: Priority; date: string }
@@ -104,6 +108,20 @@ interface LifeosApi {
     removeSession(id: number): Promise<void>
     minutesByProject(): Promise<[number, number][]>
     minutesByTask(projectId: number): Promise<[number, number][]>
+  }
+  insp: {
+    list(filter?: InspirationFilter): Promise<Inspiration[]>
+    get(id: number): Promise<Inspiration | null>
+    capture(input: CaptureInput): Promise<Inspiration>
+    update(id: number, patch: InspirationPatch): Promise<Inspiration>
+    remove(id: number): Promise<void>
+    setStarred(id: number, starred: boolean): Promise<Inspiration>
+    listTags(): Promise<string[]>
+    listBoards(): Promise<InspirationBoard[]>
+    createBoard(input: BoardInput): Promise<InspirationBoard>
+    updateBoard(id: number, patch: BoardPatch): Promise<InspirationBoard>
+    removeBoard(id: number): Promise<void>
+    boardStats(): Promise<[number, BoardStat][]>
   }
 }
 

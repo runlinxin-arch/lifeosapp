@@ -83,6 +83,20 @@ const api = {
     removeSession: (id: number): Promise<unknown> => ipcRenderer.invoke('dev:deleteSession', id),
     minutesByProject: (): Promise<unknown> => ipcRenderer.invoke('dev:minutesByProject'),
     minutesByTask: (projectId: number): Promise<unknown> => ipcRenderer.invoke('dev:minutesByTask', projectId)
+  },
+  insp: {
+    list: (filter?: unknown): Promise<unknown> => ipcRenderer.invoke('insp:list', filter),
+    get: (id: number): Promise<unknown> => ipcRenderer.invoke('insp:get', id),
+    capture: (input: unknown): Promise<unknown> => ipcRenderer.invoke('insp:capture', input),
+    update: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('insp:update', id, patch),
+    remove: (id: number): Promise<unknown> => ipcRenderer.invoke('insp:delete', id),
+    setStarred: (id: number, starred: boolean): Promise<unknown> => ipcRenderer.invoke('insp:setStarred', id, starred),
+    listTags: (): Promise<unknown> => ipcRenderer.invoke('insp:listTags'),
+    listBoards: (): Promise<unknown> => ipcRenderer.invoke('insp:listBoards'),
+    createBoard: (input: unknown): Promise<unknown> => ipcRenderer.invoke('insp:createBoard', input),
+    updateBoard: (id: number, patch: unknown): Promise<unknown> => ipcRenderer.invoke('insp:updateBoard', id, patch),
+    removeBoard: (id: number): Promise<unknown> => ipcRenderer.invoke('insp:deleteBoard', id),
+    boardStats: (): Promise<unknown> => ipcRenderer.invoke('insp:boardStats')
   }
 }
 

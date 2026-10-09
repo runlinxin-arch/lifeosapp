@@ -7,6 +7,10 @@ import * as events from './db/events'
 import * as interop from './db/interop'
 import * as learn from './db/learn'
 import * as dev from './db/dev'
+import * as insp from './db/inspiration'
+import { capture } from './capture'
+import { deleteImageFile, saveImageFile } from './images'
+import type { CaptureInput } from '@shared/types'
 import { getAllSettings, setSetting, type SettingsKey } from './db/settings'
 
 export function registerIpc(db: DatabaseSync): void {
@@ -101,4 +105,24 @@ export function registerIpc(db: DatabaseSync): void {
   ipcMain.handle('dev:deleteSession', (_e, id: number) => dev.deleteDevSession(db, id))
   ipcMain.handle('dev:minutesByProject', () => [...dev.minutesByProject(db).entries()])
   ipcMain.handle('dev:minutesByTask', (_e, projectId: number) => [...dev.minutesByTask(db, projectId).entries()])
+
+  // ---------- M3-3 设计灵感 ----------
+  ipcMain.handle('insp:list', (_e, filter?: insp.InspirationFilter) => insp.listInspirations(db, filter))
+  ipcMain.handle('insp:get', (_e, id: number) => insp.getInspiration(db, id))
+  ipcMain.handle('insp:capture', (_e, input: CaptureInput) =>
+    capture(db, input, { save: saveImageFile, remove: deleteImageFile }))
+  ipcMain.handle('insp:update', (_e, id: number, patch: insp.InspirationPatch) =>
+    insp.updateInspiration(db, id, patch))
+  ipcMain.handle('insp:delete', (_e, id: number) => {
+    // 先删记录（事务），提交成功后再删文件：避免"文件没了但记录还在"
+    const imageName = insp.deleteInspiration(db, id)
+    deleteImageFile(imageName)
+  })
+  ipcMain.handle('insp:setStarred', (_e, id: number, starred: boolean) => insp.setStarred(db, id, starred))
+  ipcMain.handle('insp:listTags', () => insp.listTags(db))
+  ipcMain.handle('insp:listBoards', () => insp.listBoards(db))
+  ipcMain.handle('insp:createBoard', (_e, input: insp.BoardInput) => insp.createBoard(db, input))
+  ipcMain.handle('insp:updateBoard', (_e, id: number, patch: insp.BoardPatch) => insp.updateBoard(db, id, patch))
+  ipcMain.handle('insp:deleteBoard', (_e, id: number) => insp.deleteBoard(db, id))
+  ipcMain.handle('insp:boardStats', () => [...insp.boardStats(db).entries()])
 }
