@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { WorkoutPlan } from '@shared/types'
 import { WEEKDAY_LABELS } from '@shared/fitnessContent'
 import { useFitnessStore } from '../../stores/fitnessStore'
@@ -12,23 +12,32 @@ export function PlanEditor({ plan }: { plan: WorkoutPlan }): JSX.Element {
   const [draft, setDraft] = useState<Record<string, string>>(plan.schedule)
   const [nameDraft, setNameDraft] = useState(plan.name)
 
+  // onBlur 若直接读 draft/nameDraft 会拿到上一次 render 的旧值（失焦时 React 未必已重渲染），
+  // 导致"输入后立刻失焦"丢失最后一击。用 ref 存最新值，失焦保存永远不脏。
+  const draftRef = useRef(draft)
+  const nameRef = useRef(nameDraft)
+
   // 切换计划时同步草稿
   const [lastPlanId, setLastPlanId] = useState(plan.id)
   if (lastPlanId !== plan.id) {
     setLastPlanId(plan.id)
     setDraft(plan.schedule)
     setNameDraft(plan.name)
+    draftRef.current = plan.schedule
+    nameRef.current = plan.name
   }
 
   const save = async (next: Record<string, string>): Promise<void> => {
     setDraft(next)
+    draftRef.current = next
     await updatePlan(plan.id, { schedule: next })
   }
 
   const setDay = (key: string, value: string): void => {
-    const next = { ...draft }
+    const next = { ...draftRef.current }
     if (value.trim()) next[key] = value
     else delete next[key]
+    draftRef.current = next
     setDraft(next)
   }
 
@@ -37,8 +46,8 @@ export function PlanEditor({ plan }: { plan: WorkoutPlan }): JSX.Element {
       <div className="flex items-center gap-2 mb-2">
         <input
           value={nameDraft}
-          onChange={(e) => setNameDraft(e.target.value)}
-          onBlur={() => { if (nameDraft.trim() && nameDraft !== plan.name) void updatePlan(plan.id, { name: nameDraft }) }}
+          onChange={(e) => { nameRef.current = e.target.value; setNameDraft(e.target.value) }}
+          onBlur={() => { if (nameRef.current.trim() && nameRef.current !== plan.name) void updatePlan(plan.id, { name: nameRef.current }) }}
           onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
           className="flex-1 bg-transparent text-sm font-bold outline-none"
         />
@@ -58,7 +67,7 @@ export function PlanEditor({ plan }: { plan: WorkoutPlan }): JSX.Element {
               data-plan-day={key}
               value={draft[key] ?? ''}
               onChange={(e) => setDay(key, e.target.value)}
-              onBlur={() => void save(draft)}
+              onBlur={() => void save(draftRef.current)}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
               placeholder="—"
               className={`${inputCls} text-center`}
