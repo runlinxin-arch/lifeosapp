@@ -5,6 +5,7 @@ import { useFitnessStore } from '../../stores/fitnessStore'
 import { todayStr } from '@shared/dates'
 
 const H = 120
+const FAT_H = 64
 const PAD = 8
 const WEIGHT_COLOR = '#e74c3c'
 const FAT_COLOR = '#f39c12'
@@ -37,7 +38,7 @@ export function BodyTrend(): JSX.Element {
 
   const weightPts = toSvgPoints(metrics.map((m) => ({ date: m.date, value: m.weight })), chartW, H, PAD)
   const fatRows = metrics.filter((m) => m.body_fat !== null)
-  const fatPts = toSvgPoints(fatRows.map((m) => ({ date: m.date, value: m.body_fat as number })), chartW, H, PAD)
+  const fatPts = toSvgPoints(fatRows.map((m) => ({ date: m.date, value: m.body_fat as number })), chartW, FAT_H, PAD)
 
   const openDialog = (): void => {
     setDate(todayStr())
@@ -78,39 +79,46 @@ export function BodyTrend(): JSX.Element {
         </div>
       )}
 
-      <div ref={boxRef}>
+      <div ref={boxRef} data-chart-box="true">
       {metrics.length < 2 ? (
         <div className="text-[10px] text-[var(--muted)] py-6 text-center">
           至少记录两天才能画出趋势（当前 {metrics.length} 天）
         </div>
       ) : (
-        <svg width={chartW} height={H} viewBox={`0 0 ${chartW} ${H}`} className="block" data-chart="body">
-          <path d={linePath(weightPts)} fill="none" stroke={WEIGHT_COLOR} strokeWidth={1.5} />
-          {weightPts.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r={2} fill={WEIGHT_COLOR} />
-          ))}
+        <>
+          <div className="flex items-center gap-2 mb-1 text-[9px] text-[var(--muted)]">
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-3 h-0.5" style={{ background: WEIGHT_COLOR }} /> 体重 (kg)
+            </span>
+          </div>
+          <svg width={chartW} height={H} viewBox={`0 0 ${chartW} ${H}`} className="block" data-chart="body-weight">
+            <path d={linePath(weightPts)} fill="none" stroke={WEIGHT_COLOR} strokeWidth={1.5} />
+            {weightPts.map((p, i) => (
+              <circle key={i} cx={p.x} cy={p.y} r={2} fill={WEIGHT_COLOR} />
+            ))}
+          </svg>
+
           {fatPts.length >= 2 && (
             <>
-              <path d={linePath(fatPts)} fill="none" stroke={FAT_COLOR} strokeWidth={1.2} strokeDasharray="4 3" />
-              {fatPts.map((p, i) => (
-                <circle key={`f${i}`} cx={p.x} cy={p.y} r={1.5} fill={FAT_COLOR} />
-              ))}
+              <div className="flex items-center gap-2 mt-2 mb-1 text-[9px] text-[var(--muted)]">
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-0.5" style={{ background: FAT_COLOR }} /> 体脂 (%)
+                </span>
+              </div>
+              <svg width={chartW} height={FAT_H} viewBox={`0 0 ${chartW} ${FAT_H}`} className="block" data-chart="body-fat">
+                <path d={linePath(fatPts)} fill="none" stroke={FAT_COLOR} strokeWidth={1.2} strokeDasharray="4 3" />
+                {fatPts.map((p, i) => (
+                  <circle key={`f${i}`} cx={p.x} cy={p.y} r={1.5} fill={FAT_COLOR} />
+                ))}
+              </svg>
             </>
           )}
-        </svg>
+        </>
       )}
       </div>
 
-      <div className="mt-1 flex items-center gap-3 text-[9px] text-[var(--muted)]">
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-0.5" style={{ background: WEIGHT_COLOR }} /> 体重
-        </span>
-        {fatPts.length >= 2 && (
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-0.5" style={{ background: FAT_COLOR }} /> 体脂
-          </span>
-        )}
-        <span className="ml-auto">{metrics.length} 天记录</span>
+      <div className="mt-1 flex items-center justify-end text-[9px] text-[var(--muted)]">
+        <span>{metrics.length} 天记录</span>
       </div>
 
       {open && (

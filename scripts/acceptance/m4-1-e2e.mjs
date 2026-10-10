@@ -237,10 +237,14 @@ await addMetric(D.today, 70.5, 17.9)
 const metrics = await evaluate(`(async () => (await window.lifeos.fit.listMetrics()).map(m => ({ d: m.date, w: m.weight, f: m.body_fat })))()`)
 check('身体数据按日期记录两条', metrics.length === 2, JSON.stringify(metrics))
 const chart = await evaluate(`(() => {
-  const s = document.querySelector('svg[data-chart="body"]');
-  return s ? { circles: s.querySelectorAll('circle').length, dashed: s.querySelectorAll('path[stroke-dasharray]').length } : null;
+  const w = document.querySelector('svg[data-chart="body-weight"]');
+  const f = document.querySelector('svg[data-chart="body-fat"]');
+  return w && f
+    ? { wCircles: w.querySelectorAll('circle').length, fCircles: f.querySelectorAll('circle').length, fDashed: f.querySelectorAll('path[stroke-dasharray]').length }
+    : null;
 })()`)
-check('趋势曲线出现：体重两点 + 体脂虚线', !!chart && chart.circles >= 4 && chart.dashed >= 1, JSON.stringify(chart))
+check('趋势曲线出现：体重两点 + 体脂独立迷你图',
+  !!chart && chart.wCircles >= 2 && chart.fCircles >= 2 && chart.fDashed >= 1, JSON.stringify(chart))
 check('显示最新体重 70.5 kg 与相对上次变化', await evaluate(`__text().includes('70.5') && __text().includes('0.7')`))
 await shot('33-m4-fitness-trend')
 
@@ -263,8 +267,9 @@ check('打卡历史可见（3 天记录，含空打卡）',
   hist ? hist.text.slice(0, 150) : '(无)')
 
 const fit = await evaluate(`(() => {
-  const s = document.querySelector('svg[data-chart="body"]');
-  return s ? { w: Number(s.getAttribute('width')), box: Math.round(s.parentElement.clientWidth) } : null;
+  const s = document.querySelector('svg[data-chart="body-weight"]');
+  const box = document.querySelector('[data-chart-box]');
+  return s && box ? { w: Number(s.getAttribute('width')), box: Math.round(box.clientWidth) } : null;
 })()`)
 check('曲线宽度自适应容器（不再固定 320 居中）',
   !!fit && Math.abs(fit.w - fit.box) <= 2 && fit.w > 320, JSON.stringify(fit))
