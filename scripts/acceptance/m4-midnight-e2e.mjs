@@ -26,9 +26,14 @@ ws.addEventListener('message', (ev) => {
   const m = JSON.parse(ev.data)
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id) }
 })
-const send = (method, params) => new Promise((res) => {
+const CDP_TIMEOUT_MS = 15000
+const send = (method, params) => new Promise((resolve, reject) => {
   const i = ++id
-  pending.set(i, res)
+  const timer = setTimeout(() => {
+    pending.delete(i)
+    reject(new Error(`CDP ${method} timed out after ${CDP_TIMEOUT_MS}ms`))
+  }, CDP_TIMEOUT_MS)
+  pending.set(i, (m) => { clearTimeout(timer); resolve(m) })
   ws.send(JSON.stringify({ id: i, method, params }))
 })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))

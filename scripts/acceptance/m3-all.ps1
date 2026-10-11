@@ -1,12 +1,32 @@
 # M3 full regression: run every stage E2E against a SCRATCH data dir and a fresh app process.
 # The app data dir is redirected through LIFEOS_DATA_DIR, so the real %APPDATA%\LifeOS is never touched.
 # ASCII-only on purpose: Windows PowerShell reads BOM-less .ps1 as ANSI, which mangles non-ASCII.
+#
+# Safety contract (2026-10-11, ported from m4-all.ps1):
+#   1. This runner NEVER kills processes it did not start. The previous version ran
+#      `Get-Process electron,LifeOS | Stop-Process -Force`, which killed any LifeOS window the
+#      user had open. Now the app is started with -PassThru and only its own process tree is
+#      terminated (taskkill /T), then we wait until the whole tree is gone (a lingering child
+#      holds the Chromium profile SingletonLock and would wedge the NEXT stage).
+#   2. If port 9222 already serves a CDP endpoint, the runner aborts instead of hijacking or
+#      killing a foreign app.
+#   3. Fixed sleeps were replaced by state waits (CDP ready / CDP gone), matching the M4 audit
+#      fix that removed flaky sleeps from the stage scripts.
+#   4. LIFEOS_DATA_DIR only redirects app data (app.db / images / backups). Chromium's own
+#      profile (Cache, Preferences, Local Storage, ...) still lived in the REAL
+#      %APPDATA%\LifeOS and was rewritten by every acceptance run -- and two Electron
+#      instances sharing one profile conflict if the user's own window is open. The app is
+#      now started with --user-data-dir=<scratch>\profile, so nothing outside the scratch
+#      tree is written.
+#   5. Each stage runs under a hard 120s timeout. A stage that hangs is marked INVALID
+#      (contributing -1/-1) instead of wedging the whole regression.
 $ErrorActionPreference = 'Continue'
 Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 
 $root = $PWD.Path
 $realDb = Join-Path $env:APPDATA 'LifeOS\app.db'
 $realImages = Join-Path $env:APPDATA 'LifeOS\images'
+$realPrefs = Join-Path $env:APPDATA 'LifeOS\Preferences'
 
 function Get-DbFingerprint([string]$p) {
   if (Test-Path $p) {
@@ -15,7 +35,76 @@ function Get-DbFingerprint([string]$p) {
   }
   return 'absent'
 }
+
+function Test-CdpAlive {
+  try {
+    $r = Invoke-WebRequest -Uri 'http://127.0.0.1:9222/json/version' -TimeoutSec 2 -UseBasicParsing
+    return ($r.StatusCode -eq 200)
+  } catch {
+    return $false
+  }
+}
+
+function Wait-CdpReady([int]$timeoutSec = 40) {
+  $deadline = (Get-Date).AddSeconds($timeoutSec)
+  while ((Get-Date) -lt $deadline) {
+    if (Test-CdpAlive) { return $true }
+    Start-Sleep -Milliseconds 500
+  }
+  return $false
+}
+
+function Wait-CdpGone([int]$timeoutSec = 20) {
+  $deadline = (Get-Date).AddSeconds($timeoutSec)
+  while ((Get-Date) -lt $deadline) {
+    if (-not (Test-CdpAlive)) { return $true }
+    Start-Sleep -Milliseconds 250
+  }
+  return $false
+}
+
+function Test-ProcessAlive($proc) {
+  if ($null -eq $proc) { return $false }
+  return [bool](Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)
+}
+
+# Kill ONLY the process tree this runner started, then wait until the WHOLE tree is gone.
+function Stop-OwnApp($proc) {
+  if ($null -eq $proc) { return }
+  $t0 = $null
+  try { $t0 = $proc.StartTime } catch { }
+  if (Test-ProcessAlive $proc) {
+    & taskkill /PID $proc.Id /T /F 2>&1 | Out-Null
+  }
+  for ($i = 0; $i -lt 40; $i++) {
+    $left = 0
+    if ($null -ne $t0) {
+      $left = @(Get-Process -Name electron -ErrorAction SilentlyContinue | Where-Object { $_.StartTime -ge $t0.AddSeconds(-1) }).Count
+    }
+    if ($left -eq 0) { break }
+    Start-Sleep -Milliseconds 250
+  }
+}
+
+# --- Pre-flight 1: never hijack a CDP endpoint that is not ours -----------------
+if (Test-CdpAlive) {
+  Write-Output "ABORT: port 9222 already serves a DevTools endpoint."
+  Write-Output "       Close that app (or wait for it to exit) and run this script again."
+  Write-Output "       This runner will not kill a process it did not start."
+  exit 3
+}
+
+# --- Pre-flight 2: report (but do not touch) foreign electron/LifeOS processes --
+$foreign = @(Get-Process -Name electron,LifeOS -ErrorAction SilentlyContinue)
+if ($foreign.Count -gt 0) {
+  Write-Output "NOTE: $($foreign.Count) electron/LifeOS process(es) already running (PIDs: $(($foreign | ForEach-Object { $_.Id }) -join ', '))."
+  Write-Output "      They were NOT started by this runner, so they will NOT be killed."
+  Write-Output "      Stages run against the scratch data dir and a scratch profile, so they are unaffected."
+  Write-Output ""
+}
+
 $realDbBefore = Get-DbFingerprint $realDb
+$realProfileBefore = Get-DbFingerprint $realPrefs
 $realImgBefore = if (Test-Path $realImages) { (Get-ChildItem $realImages -File -ErrorAction SilentlyContinue | Measure-Object).Count } else { 'absent' }
 
 $scratch = Join-Path $env:TEMP ('lifeos-m3-e2e-' + ([guid]::NewGuid().ToString('N').Substring(0, 8)))
@@ -52,30 +141,48 @@ foreach ($s in $stages) {
   Write-Output "  STAGE: $($s.name)"
   Write-Output "================================================================="
 
-  Get-Process -Name electron,LifeOS -ErrorAction SilentlyContinue | Stop-Process -Force
-  Start-Sleep -Seconds 2
-
-  # Fresh scratch data for every stage (no cleanSql / image wipe needed: the whole dir is wiped)
+  # Fresh scratch data for every stage (no cleanSql needed: the whole dir is wiped)
   Get-ChildItem -LiteralPath $scratch -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
-  Start-Process -FilePath 'node_modules\electron\dist\electron.exe' -ArgumentList '.', '--remote-debugging-port=9222' `
-    -RedirectStandardOutput "$root\.reg-out.log" -RedirectStandardError "$root\.reg-err.log" -WorkingDirectory $root | Out-Null
-  Start-Sleep -Seconds 12
+  $appProc = Start-Process -FilePath 'node_modules\electron\dist\electron.exe' -ArgumentList '.', '--remote-debugging-port=9222', "--user-data-dir=$scratch\profile" `
+    -RedirectStandardOutput "$root\.reg-out.log" -RedirectStandardError "$root\.reg-err.log" -WorkingDirectory $root -PassThru
 
-  $out = & node $s.script 2>&1
-  $out | Select-String -Pattern 'PASS|FAIL' | ForEach-Object { "  $_" }
-  $out | Select-String -Pattern '拒绝运行' | ForEach-Object { "  $_" }
-  $hit = ($out | Select-String -Pattern '=====\s*(\d+)/(\d+)').Matches
-  if ($hit.Count -gt 0) {
-    $summary += [pscustomobject]@{ Stage = $s.name; Pass = [int]$hit[0].Groups[1].Value; Total = [int]$hit[0].Groups[2].Value }
-  } else {
+  if (-not (Wait-CdpReady 40)) {
+    Write-Output "  APP DID NOT COME UP: no CDP endpoint on 9222 -- stage marked INVALID"
     $summary += [pscustomobject]@{ Stage = $s.name; Pass = -1; Total = -1 }
+    Stop-OwnApp $appProc
+    Write-Output ""
+    continue
+  }
+
+  # Run the stage with a hard timeout so a hang cannot wedge the whole regression.
+  $nodeOut = Join-Path $env:TEMP ('node-out-' + [guid]::NewGuid().ToString('N') + '.log')
+  $nodeErr = Join-Path $env:TEMP ('node-err-' + [guid]::NewGuid().ToString('N') + '.log')
+  $n = Start-Process -FilePath 'node' -ArgumentList $s.script -RedirectStandardOutput $nodeOut -RedirectStandardError $nodeErr -WorkingDirectory $root -PassThru
+  $finished = $n.WaitForExit(120000)
+  if (-not $finished) {
+    & taskkill /PID $n.Id /T /F 2>&1 | Out-Null
+    Write-Output "  STAGE TIMED OUT (120s) -- marked INVALID, NOT a pass"
+    $summary += [pscustomobject]@{ Stage = $s.name; Pass = -1; Total = -1 }
+  } else {
+    $out = Get-Content -LiteralPath $nodeOut -Encoding UTF8 -Raw -ErrorAction SilentlyContinue
+    if ($null -eq $out) { $out = '' }
+    ($out -split "`r?`n") | Select-String -Pattern 'PASS|FAIL' | ForEach-Object { "  $_" }
+    $hit = ([regex]::Matches($out, '=====\s*(\d+)/(\d+)'))
+    if ($hit.Count -gt 0) {
+      $summary += [pscustomobject]@{ Stage = $s.name; Pass = [int]$hit[0].Groups[1].Value; Total = [int]$hit[0].Groups[2].Value }
+    } else {
+      $summary += [pscustomobject]@{ Stage = $s.name; Pass = -1; Total = -1 }
+    }
+  }
+  Remove-Item -LiteralPath $nodeOut, $nodeErr -Force -ErrorAction SilentlyContinue
+
+  Stop-OwnApp $appProc
+  if (-not (Wait-CdpGone 20)) {
+    Write-Output "  WARNING: CDP endpoint 9222 still alive after stopping our app -- next stage may be invalid"
   }
   Write-Output ""
 }
-
-Get-Process -Name electron,LifeOS -ErrorAction SilentlyContinue | Stop-Process -Force
-Start-Sleep -Seconds 2
 
 Write-Output "================================================================="
 Write-Output "  M3 FULL REGRESSION SUMMARY"
@@ -85,7 +192,7 @@ $tp = ($summary | Measure-Object -Property Pass -Sum).Sum
 $tt = ($summary | Measure-Object -Property Total -Sum).Sum
 $crashed = ($summary | Where-Object { $_.Pass -lt 0 }).Count
 if ($crashed -gt 0) {
-  Write-Output "TOTAL: INVALID -- $crashed stage(s) produced no summary (crashed / refused to run). Do NOT read this as a pass."
+  Write-Output "TOTAL: INVALID -- $crashed stage(s) produced no summary (crashed / timed out / refused to run). Do NOT read this as a pass."
 } else {
   Write-Output "TOTAL: $tp / $tt"
 }
@@ -104,4 +211,16 @@ if (Test-Path $scratchDb) {
   Write-Output "SCRATCH DB CREATED: $scratchDb ($((Get-Item $scratchDb).Length) bytes)"
 } else {
   Write-Output "SCRATCH DB MISSING: $scratchDb (LIFEOS_DATA_DIR override may not be working)"
+}
+if (Test-Path (Join-Path $scratch 'profile')) {
+  Write-Output "SCRATCH PROFILE CREATED: $(Join-Path $scratch 'profile')"
+} else {
+  Write-Output "SCRATCH PROFILE MISSING: $(Join-Path $scratch 'profile') (--user-data-dir may not be working)"
+}
+
+$realProfileAfter = Get-DbFingerprint $realPrefs
+if ($realProfileAfter -eq $realProfileBefore) {
+  Write-Output "REAL CHROMIUM PROFILE UNTOUCHED: OK ($realProfileBefore)"
+} else {
+  Write-Output "NOTE: real Chromium profile changed during this run (expected only if your own LifeOS window was open)."
 }

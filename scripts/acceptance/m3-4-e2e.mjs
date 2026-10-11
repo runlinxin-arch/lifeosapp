@@ -1,4 +1,4 @@
-﻿// M3-4「今天」页卡片接线 端到端验收
+// M3-4「今天」页卡片接线 端到端验收
 // 运行前置：应用以 --remote-debugging-port=9222 启动，且数据目录由 LIFEOS_DATA_DIR 指向临时目录
 // 安全闸门：本脚本会清理数据。必须由验收 runner 指定临时数据目录（LIFEOS_DATA_DIR），
 // 否则可能清掉真实用户数据（%APPDATA%\LifeOS\app.db）。见 scripts/acceptance/m4-all.ps1
@@ -20,9 +20,14 @@ ws.addEventListener('message', (ev) => {
   const m = JSON.parse(ev.data)
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id) }
 })
-const send = (method, params) => new Promise((res) => {
+const CDP_TIMEOUT_MS = 15000
+const send = (method, params) => new Promise((resolve, reject) => {
   const i = ++id
-  pending.set(i, res)
+  const timer = setTimeout(() => {
+    pending.delete(i)
+    reject(new Error(`CDP ${method} timed out after ${CDP_TIMEOUT_MS}ms`))
+  }, CDP_TIMEOUT_MS)
+  pending.set(i, (m) => { clearTimeout(timer); resolve(m) })
   ws.send(JSON.stringify({ id: i, method, params }))
 })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
