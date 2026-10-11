@@ -58,6 +58,8 @@ const HELPERS = `
     Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, String(v));
     el.dispatchEvent(new Event('input', { bubbles: true }));
   };
+  // 失焦保存：窗口无 OS 焦点时 el.blur() 不派发 focusout（React onBlur 监听此事件），改显式派发，不依赖窗口焦点。
+  window.__blur = (el) => { el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); };
   window.__clickText = (t) => { [...document.querySelectorAll('button')].find(b => b.textContent.trim() === t)?.click(); };
   window.__text = () => document.querySelector('main').innerText;
   true;
@@ -218,7 +220,7 @@ await evaluate(`(async () => {
   const el = document.querySelector('[data-plan-input="lunch"]');
   el.focus(); window.__set(el, '鸡胸沙拉 + 糙米');
   await new Promise(r => setTimeout(r, 150));
-  el.blur();
+  window.__blur(el);
   return true;
 })()`)
 const planSaved = await waitFor(`document.querySelector('[data-plan-count]')?.getAttribute('data-plan-count') === '1'`, 6000)
@@ -268,7 +270,7 @@ await evaluate(`(async () => {
   const el = document.querySelector('[data-plan-input="lunch"]');
   el.focus(); window.__set(el, '');
   await new Promise(r => setTimeout(r, 150));
-  el.blur();
+  window.__blur(el);
   return true;
 })()`)
 // 等计划真正被删除（替代固定 sleep）

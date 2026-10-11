@@ -58,6 +58,8 @@ const HELPERS = `
     Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, String(v));
     el.dispatchEvent(new Event('input', { bubbles: true }));
   };
+  // 失焦保存：窗口无 OS 焦点时 el.blur() 不派发 focusout（React onBlur 监听此事件），改显式派发，不依赖窗口焦点。
+  window.__blur = (el) => { el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); };
   window.__clickText = (t) => { [...document.querySelectorAll('button')].find(b => b.textContent.trim() === t)?.click(); };
   window.__text = () => document.querySelector('main').innerText;
   window.__stat = (k) => { const el = document.querySelector('[data-stat-' + k + ']'); return el ? el.getAttribute('data-stat-' + k) : null; };
@@ -115,7 +117,7 @@ const setDay = async (key, value) => {
     const el = document.querySelector('[data-plan-day="${key}"]');
     el.focus(); window.__set(el, '${value}');
     await new Promise(r => setTimeout(r, 150));
-    el.blur();
+    window.__blur(el);
     return true;
   })()`)
   const saved = await waitFor(`(async () => {
