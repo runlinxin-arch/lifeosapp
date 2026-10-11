@@ -81,6 +81,10 @@ await sleep(400)
 const accent = await evaluate(`__css('--accent')`)
 check('主题色更换全局生效（--accent = #4ade80）', accent === '#4ade80', `accent=${accent}`)
 
+// checkbox 的 accent-color 也应跟随主题色（回归问题 #2）
+const cbAccent = await evaluate(`getComputedStyle(document.querySelector('header input[type=checkbox]')).accentColor`)
+check('checkbox 主题色跟随 --accent（#4ade80）', cbAccent === 'rgb(74, 222, 128)', `accentColor=${cbAccent}`)
+
 await evaluate(`document.querySelector('[data-accent="#7c8cff"]').click(); true`)
 await sleep(400)
 

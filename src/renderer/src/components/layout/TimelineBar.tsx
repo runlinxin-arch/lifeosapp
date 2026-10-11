@@ -101,7 +101,7 @@ export function TimelineBar(): JSX.Element {
           type="checkbox"
           checked={settings['timeline.showDone']}
           onChange={(e) => void setSetting('timeline.showDone', e.target.checked)}
-          className="accent-[#7c8cff]"
+          className="accent-[var(--accent)]"
         />
         显示已完成
       </label>

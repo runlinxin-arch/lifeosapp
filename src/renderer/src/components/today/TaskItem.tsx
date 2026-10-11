@@ -15,7 +15,7 @@ export function TaskItem({ task, onToggle, onRemove, onConvert, onJump }: {
 
   return (
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] group">
-      <input type="checkbox" checked={task.done} onChange={() => onToggle(task.id)} className="accent-[#7c8cff]" />
+      <input type="checkbox" checked={task.done} onChange={() => onToggle(task.id)} className="accent-[var(--accent)]" />
       <span className={`flex-1 text-sm ${task.done ? 'line-through text-[var(--muted)]' : ''}`}>{task.title}</span>
 
       {fromEvent ? (

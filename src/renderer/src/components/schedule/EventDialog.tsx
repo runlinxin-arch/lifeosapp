@@ -99,7 +99,7 @@ export function EventDialog({ open, initial, defaultStart, onClose, onSubmit, on
         </div>
 
         <label className="flex items-center gap-2 text-xs text-[var(--muted)] mb-2">
-          <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} className="accent-[#7c8cff]" />
+          <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} className="accent-[var(--accent)]" />
           全天事件
         </label>
 
