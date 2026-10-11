@@ -27,7 +27,7 @@ jobs:
         run: npm run build
 
       - name: Build installer
-        run: npx electron-builder --win
+        run: npx electron-builder --win --publish never
 
       - name: Create release and upload installer
         shell: pwsh
