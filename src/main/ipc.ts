@@ -18,6 +18,24 @@ import type { CaptureInput } from '@shared/types'
 import { getAllSettings, setSetting, type SettingsKey } from './db/settings'
 import { fetchStyle } from './themeStyle'
 import { exportData, importData, defaultExportFileName, ImportError } from './dataTransfer'
+import { restartStrategy } from './restart'
+
+/** 导入后重启：打包版用 app.relaunch() 自动重启；开发模式下提示用户手动重启 */
+function restartAfterImport(): void {
+  setTimeout(() => {
+    if (restartStrategy(app.isPackaged) === 'relaunch') {
+      app.relaunch()
+    } else {
+      dialog.showMessageBoxSync({
+        type: 'info',
+        title: 'LifeOS',
+        message: '数据已导入，需要重启应用以生效。',
+        detail: '当前为开发模式：请关闭应用后重新运行 npm run dev。'
+      })
+    }
+    app.exit(0)
+  }, 500)
+}
 
 export function registerIpc(db: DatabaseSync, dataDir: string): void {
   ipcMain.handle('tasks:list', (_e, date: string) => {
@@ -76,12 +94,12 @@ export function registerIpc(db: DatabaseSync, dataDir: string): void {
     try {
       await importData(db, dataDir, filePaths[0])
       // 替换成功 → 重启以加载新库（替换前已把旧库备份进滚动备份）
-      setTimeout(() => { app.relaunch(); app.exit(0) }, 500)
+      restartAfterImport()
       return { canceled: false, ok: true }
     } catch (e) {
       // 失败若发生在关库之后的替换阶段，库已关闭，必须重启由 startupOpen 从备份恢复
       const dbClosed = e instanceof ImportError && e.dbClosed
-      if (dbClosed) setTimeout(() => { app.relaunch(); app.exit(0) }, 500)
+      if (dbClosed) restartAfterImport()
       return { canceled: false, ok: false, error: e instanceof Error ? e.message : '导入失败' }
     }
   })
