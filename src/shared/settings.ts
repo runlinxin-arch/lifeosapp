@@ -8,13 +8,15 @@ export interface Settings {
   'timeline.showDone': boolean
   'remind.enabled': boolean
   'remind.leadMinutes': number
+  'autoGameLog.enabled': boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   'timeline.rangeDays': 30,
   'timeline.showDone': false,
   'remind.enabled': true,
-  'remind.leadMinutes': 15
+  'remind.leadMinutes': 15,
+  'autoGameLog.enabled': true
 }
 
 export type SettingsKey = keyof Settings

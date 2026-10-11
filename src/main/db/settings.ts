@@ -13,6 +13,9 @@ function validate(key: SettingsKey, value: unknown): void {
   if (key === 'remind.enabled' && typeof value !== 'boolean') {
     throw new Error('remind.enabled 必须是布尔值')
   }
+  if (key === 'autoGameLog.enabled' && typeof value !== 'boolean') {
+    throw new Error('autoGameLog.enabled 必须是布尔值')
+  }
   if (key === 'remind.leadMinutes') {
     if (!Number.isInteger(value) || (value as number) < 0 || (value as number) > 1440) {
       throw new Error('提前提醒分钟数必须是 0–1440 的整数')
