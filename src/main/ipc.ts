@@ -15,6 +15,7 @@ import { readClipboardImage } from './clipboardImage'
 import { deleteImageFile, saveImageFile } from './images'
 import type { CaptureInput } from '@shared/types'
 import { getAllSettings, setSetting, type SettingsKey } from './db/settings'
+import { fetchStyle } from './themeStyle'
 
 export function registerIpc(db: DatabaseSync): void {
   ipcMain.handle('tasks:list', (_e, date: string) => {
@@ -49,6 +50,7 @@ export function registerIpc(db: DatabaseSync): void {
   ipcMain.handle('settings:getAll', () => getAllSettings(db))
   ipcMain.handle('settings:set', (_e, key: SettingsKey, value: unknown) =>
     setSetting(db, key, value as never))
+  ipcMain.handle('theme:fetchStyle', (_e, url: string) => fetchStyle(url))
 
   // ---------- M3-1 自我学习 ----------
   ipcMain.handle('learn:listItems', () => learn.listLearnItems(db))

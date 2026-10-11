@@ -1,9 +1,14 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { DEFAULT_ACCENT } from '@shared/settings'
+import { api } from '../../lib/ipc'
+import { applyTheme } from '../../lib/theme'
+import { formatIpcError } from '../../lib/errors'
+import { DEFAULT_ACCENT, type ThemePalette } from '@shared/settings'
 
 /** 预设主题色：默认强调色 + 各模块色 + 独立灰 */
 const ACCENTS = [DEFAULT_ACCENT, '#4ade80', '#3498db', '#e879c9', '#e74c3c', '#f39c12', '#8b8d98']
+
+const PALETTE_KEYS = ['bg', 'card', 'border', 'accent', 'text', 'muted'] as const
 
 function Card({ title, children }: { title: string; children: ReactNode }): JSX.Element {
   return (
@@ -31,7 +36,31 @@ export function SettingsPage(): JSX.Element {
   const load = useSettingsStore((s) => s.load)
   const set = useSettingsStore((s) => s.set)
 
+  const [url, setUrl] = useState('')
+  const [pending, setPending] = useState<ThemePalette | null>(null)
+  const [fetching, setFetching] = useState(false)
+  const [styleError, setStyleError] = useState<string | null>(null)
+
   useEffect(() => { void load() }, [load])
+
+  const doFetch = async (): Promise<void> => {
+    setStyleError(null)
+    setPending(null)
+    if (!url.trim()) { setStyleError('请输入网址'); return }
+    setFetching(true)
+    try {
+      setPending(await api.theme.fetchStyle(url.trim()))
+    } catch (e) {
+      setStyleError(formatIpcError(e))
+    } finally {
+      setFetching(false)
+    }
+  }
+
+  const previewPending = (): void => {
+    if (!pending) return
+    applyTheme({ 'theme.mode': settings['theme.mode'], 'theme.accent': pending.accent, 'theme.custom': pending })
+  }
 
   return (
     <div className="p-6 max-w-3xl">
@@ -71,10 +100,61 @@ export function SettingsPage(): JSX.Element {
             />
           </div>
         </Row>
+
+        <Row label="网站风格">
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void doFetch() }}
+                placeholder="粘贴网址，抓取配色生成主题（如 https://example.com）"
+                className={`${inputCls} flex-1`}
+              />
+              <button
+                onClick={() => void doFetch()}
+                disabled={fetching}
+                className="px-3 py-1.5 text-sm rounded bg-[var(--accent)] text-white disabled:opacity-50"
+              >{fetching ? '抓取中…' : '抓取'}</button>
+            </div>
+
+            {pending && (
+              <div className="rounded border border-[var(--border)] p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  {PALETTE_KEYS.map((k) => (
+                    <span
+                      key={k}
+                      className="w-8 h-8 rounded border border-[var(--border)]"
+                      style={{ background: pending[k] }}
+                      title={`${k}: ${pending[k]}`}
+                    />
+                  ))}
+                  <span className="text-xs text-[var(--muted)]">抓取到的配色（bg / card / border / accent / text / muted）</span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={previewPending} className="text-xs px-2 py-1 rounded bg-[var(--accent)] text-white">预览</button>
+                  <button
+                    onClick={() => { void set('theme.custom', pending); setPending(null) }}
+                    className="text-xs px-2 py-1 rounded bg-[var(--accent)] text-white"
+                  >应用此主题</button>
+                  <button
+                    onClick={() => { applyTheme(settings); setPending(null) }}
+                    className="text-xs px-2 py-1 rounded bg-[var(--border)]"
+                  >放弃</button>
+                </div>
+              </div>
+            )}
+
+            {styleError && (
+              <div className="text-xs text-red-400">{styleError} —— 可改用上方的「主题模式 / 主题色」手动选色</div>
+            )}
+          </div>
+        </Row>
+
         {settings['theme.custom'] && (
-          <Row label="网站主题">
+          <Row label="已应用">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--muted)]">已应用网站风格主题，覆盖了基础色板</span>
+              <span className="text-xs text-[var(--muted)]">当前使用网站风格主题，覆盖了基础色板</span>
               <button
                 onClick={() => void set('theme.custom', null)}
                 className="text-xs px-2 py-1 rounded border border-[var(--border)] hover:border-[var(--accent)]"

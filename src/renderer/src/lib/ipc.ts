@@ -9,7 +9,7 @@ import type {
   Task, TechNote, TechNoteInput, TechNotePatch,
   WorkoutLog, WorkoutLogInput, WorkoutLogPatch, WorkoutPlan, WorkoutPlanInput, WorkoutPlanPatch
 } from '@shared/types'
-import type { Settings, SettingsKey } from '@shared/settings'
+import type { Settings, SettingsKey, ThemePalette } from '@shared/settings'
 import type { SnippetFilter } from '@shared/snippetFilter'
 import type { InspirationFilter } from '@shared/inspirationFilter'
 
@@ -57,6 +57,9 @@ interface LifeosApi {
   settings: {
     getAll(): Promise<Settings>
     set<K extends SettingsKey>(key: K, value: Settings[K]): Promise<Settings>
+  }
+  theme: {
+    fetchStyle(url: string): Promise<ThemePalette>
   }
   learn: {
     listItems(): Promise<LearnItem[]>

@@ -31,6 +31,9 @@ const api = {
     getAll: (): Promise<unknown> => ipcRenderer.invoke('settings:getAll'),
     set: (key: string, value: unknown): Promise<unknown> => ipcRenderer.invoke('settings:set', key, value)
   },
+  theme: {
+    fetchStyle: (url: string): Promise<unknown> => ipcRenderer.invoke('theme:fetchStyle', url)
+  },
   learn: {
     listItems: (): Promise<unknown> => ipcRenderer.invoke('learn:listItems'),
     createItem: (input: unknown): Promise<unknown> => ipcRenderer.invoke('learn:createItem', input),
