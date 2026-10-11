@@ -1,11 +1,12 @@
+import { useState } from 'react'
 import type { Meal, MealPlan } from '@shared/types'
 import { plannedCount, recordedCount, upcomingDays } from '@shared/dietStats'
-import { formatCn, weekdayCn } from '@shared/dates'
+import { addDays, formatCn, weekdayCn } from '@shared/dates'
 
-const DAYS = 14
+const DAYS = 7
 const AMBER = '#f39c12'
 
-/** 饮食计划横条：今天起 14 天，显示每天已记录餐数与已编排计划数，点击切换查看日期 */
+/** 饮食计划横条：今天起 7 天一个视口，‹ › 左右翻页（每页 ±7 天），点击某天切换查看日期 */
 export function MealPlanStrip({ today, date, meals, plans, onSelect }: {
   today: string
   date: string
@@ -13,13 +14,37 @@ export function MealPlanStrip({ today, date, meals, plans, onSelect }: {
   plans: MealPlan[]
   onSelect: (date: string) => void
 }): JSX.Element {
-  const days = upcomingDays(today, DAYS)
+  const [page, setPage] = useState(0)
+  const start = addDays(today, page * DAYS)
+  const days = upcomingDays(start, DAYS)
 
   return (
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-2 mb-3" data-plan-strip>
       <div className="flex items-center gap-2 px-1 mb-1.5">
         <span className="text-[11px] font-bold">🗓 饮食计划横条</span>
-        <span className="text-[9px] text-[var(--muted)]">点某天可提前编排（未来 14 天）</span>
+        <span className="text-[9px] text-[var(--muted)]">点某天可提前编排（每页 7 天）</span>
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            data-plan-prev
+            onClick={() => setPage((p) => p - 1)}
+            className="text-xs w-6 h-6 rounded border border-[var(--border)] hover:border-[var(--accent)] text-[var(--text)]"
+            title="上一页（过去 7 天）"
+          >‹</button>
+          {page !== 0 && (
+            <button
+              data-plan-today
+              onClick={() => setPage(0)}
+              className="text-[10px] px-2 h-6 rounded border border-[var(--border)] hover:border-[var(--accent)] text-[var(--accent)]"
+              title="回到今天"
+            >今天</button>
+          )}
+          <button
+            data-plan-next
+            onClick={() => setPage((p) => p + 1)}
+            className="text-xs w-6 h-6 rounded border border-[var(--border)] hover:border-[var(--accent)] text-[var(--text)]"
+            title="下一页（未来 7 天）"
+          >›</button>
+        </div>
       </div>
 
       <div className="flex gap-1 overflow-x-auto pb-1">

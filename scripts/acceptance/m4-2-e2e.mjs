@@ -179,10 +179,21 @@ const kcalAfterClear = await attr('[data-nutrition-calories]', 'data-nutrition-c
 check('取消打卡后卡片回到虚线占位', backToEmpty)
 check('取消后合计相应减少（615 − 150 = 465 kcal）', kcalAfterClear === '465', `kcal=${kcalAfterClear}`)
 
-// ============ 8. 计划横条（未来 14 天） ============
+// ============ 8. 计划横条（7 天 + 左右翻页） ============
 const stripDays = await evaluate(`document.querySelectorAll('[data-plan-day]').length`)
 const todaySelected = (await attr('[data-plan-day="' + D.today + '"]', 'data-day-selected')) === 'true'
-check('计划横条渲染未来 14 天，今天默认选中', stripDays === 14 && todaySelected, `${stripDays} 格`)
+check('计划横条渲染 7 天，今天默认选中', stripDays === 7 && todaySelected, `${stripDays} 格`)
+
+// 翻页：› 进未来一周（今天不在视口），‹ 回到本周（今天可见）
+await evaluate(`document.querySelector('[data-plan-next]')?.click(); true`)
+await sleep(300)
+const nextDays = await evaluate(`[...document.querySelectorAll('[data-plan-day]')].map(el => el.getAttribute('data-plan-day'))`)
+check('右翻页进入未来一周（今天不在视口）',
+  nextDays.length === 7 && !nextDays.includes(D.today), `${nextDays[0]}..${nextDays[6]}`)
+await evaluate(`document.querySelector('[data-plan-prev]')?.click(); true`)
+await sleep(300)
+check('左翻页回到本周（今天可见）',
+  await evaluate(`!!document.querySelector('[data-plan-day="${D.today}"]')`))
 
 // ============ 9. 为明天编排午餐 ============
 await evaluate(`document.querySelector('[data-plan-day="${D.tomorrow}"]')?.click(); true`)
@@ -200,9 +211,16 @@ const focused = await evaluate(`(() => {
 })()`)
 check('计划输入框可聚焦并写入', focused.active === true && focused.value === '鸡胸沙拉 + 糙米', JSON.stringify(focused))
 
-// 失焦保存：等待状态真正落到界面（固定 sleep 在机器繁忙时会假失败）
+// 失焦保存：与 m4-1 编排保存同款——同一 evaluate 内 set → 等 React flush → 再 blur，
+// 避免"输入后立即失焦"时 onChange 尚未落进状态的竞态（此前偶发假失败）。
 const t0 = Date.now()
-await evaluate(`document.querySelector('[data-plan-input="lunch"]')?.blur(); true`)
+await evaluate(`(async () => {
+  const el = document.querySelector('[data-plan-input="lunch"]');
+  el.focus(); window.__set(el, '鸡胸沙拉 + 糙米');
+  await new Promise(r => setTimeout(r, 150));
+  el.blur();
+  return true;
+})()`)
 const planSaved = await waitFor(`document.querySelector('[data-plan-count]')?.getAttribute('data-plan-count') === '1'`, 6000)
 const saveMs = Date.now() - t0
 const dbPlanCount = await evaluate(`(async () => (await window.lifeos.diet.listPlans('${D.tomorrow}', '${D.tomorrow}')).length)()`)
