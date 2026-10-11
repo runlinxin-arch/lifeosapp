@@ -61,6 +61,10 @@ interface LifeosApi {
   theme: {
     fetchStyle(url: string): Promise<ThemePalette>
   }
+  data: {
+    export(): Promise<{ canceled: boolean; file?: string }>
+    import(): Promise<{ canceled: boolean; ok?: boolean; error?: string }>
+  }
   learn: {
     listItems(): Promise<LearnItem[]>
     createItem(input: LearnItemInput): Promise<LearnItem>

@@ -38,6 +38,11 @@ function vacuumInto(db: DatabaseSync, target: string): void {
   db.exec(`VACUUM INTO '${literal}'`)
 }
 
+/** 用 VACUUM INTO 生成一致快照到指定文件（目标需不存在；供备份与导出复用） */
+export function snapshotTo(db: DatabaseSync, target: string): void {
+  vacuumInto(db, target)
+}
+
 /** 用 VACUUM INTO 生成一致快照（WAL 未 checkpoint 也能拿到完整数据） */
 export function createBackup(db: DatabaseSync, dir: string, now: Date = new Date()): string {
   fs.mkdirSync(dir, { recursive: true })

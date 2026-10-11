@@ -45,7 +45,7 @@ void app.whenReady().then(() => {
   if (process.env[DATA_DIR_ENV]) console.log(`[lifeos] dataDir 被 ${DATA_DIR_ENV} 覆盖为 ${dataDir}`)
   ensureDataDir(dataDir)
   const { db, notice } = startupOpen(path.join(dataDir, 'app.db'), path.join(dataDir, 'backups'))
-  registerIpc(db)
+  registerIpc(db, dataDir)
   // 必须在窗口加载页面前挂上，否则首屏图片会 404
   registerImageProtocol()
 

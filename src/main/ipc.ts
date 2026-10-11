@@ -1,4 +1,5 @@
-import { ipcMain, clipboard } from 'electron'
+import { ipcMain, clipboard, app, dialog } from 'electron'
+import path from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import type { ModuleKey } from '@shared/types'
 import * as tasks from './db/tasks'
@@ -16,8 +17,9 @@ import { deleteImageFile, saveImageFile } from './images'
 import type { CaptureInput } from '@shared/types'
 import { getAllSettings, setSetting, type SettingsKey } from './db/settings'
 import { fetchStyle } from './themeStyle'
+import { exportData, importData, defaultExportFileName } from './dataTransfer'
 
-export function registerIpc(db: DatabaseSync): void {
+export function registerIpc(db: DatabaseSync, dataDir: string): void {
   ipcMain.handle('tasks:list', (_e, date: string) => {
     // 当日日程发生项先同步成待办行，再返回列表
     interop.syncEventTasks(db, date)
@@ -51,6 +53,35 @@ export function registerIpc(db: DatabaseSync): void {
   ipcMain.handle('settings:set', (_e, key: SettingsKey, value: unknown) =>
     setSetting(db, key, value as never))
   ipcMain.handle('theme:fetchStyle', (_e, url: string) => fetchStyle(url))
+
+  // ---------- M5 数据导出 / 导入 ----------
+  ipcMain.handle('data:export', async () => {
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: '导出数据包',
+      defaultPath: path.join(app.getPath('documents'), defaultExportFileName()),
+      filters: [{ name: 'LifeOS 数据包', extensions: ['tar.gz'] }]
+    })
+    if (canceled || !filePath) return { canceled: true }
+    await exportData(db, dataDir, filePath)
+    return { canceled: false, file: filePath }
+  })
+
+  ipcMain.handle('data:import', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: '导入数据包',
+      properties: ['openFile'],
+      filters: [{ name: 'LifeOS 数据包', extensions: ['tar.gz'] }]
+    })
+    if (canceled || !filePaths.length) return { canceled: true }
+    try {
+      await importData(db, dataDir, filePaths[0])
+      // 替换成功 → 重启以加载新库（替换前已把旧库备份进滚动备份）
+      setTimeout(() => { app.relaunch(); app.exit(0) }, 500)
+      return { canceled: false, ok: true }
+    } catch (e) {
+      return { canceled: false, ok: false, error: e instanceof Error ? e.message : '导入失败' }
+    }
+  })
 
   // ---------- M3-1 自我学习 ----------
   ipcMain.handle('learn:listItems', () => learn.listLearnItems(db))

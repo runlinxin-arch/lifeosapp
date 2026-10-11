@@ -34,6 +34,10 @@ const api = {
   theme: {
     fetchStyle: (url: string): Promise<unknown> => ipcRenderer.invoke('theme:fetchStyle', url)
   },
+  data: {
+    export: (): Promise<unknown> => ipcRenderer.invoke('data:export'),
+    import: (): Promise<unknown> => ipcRenderer.invoke('data:import')
+  },
   learn: {
     listItems: (): Promise<unknown> => ipcRenderer.invoke('learn:listItems'),
     createItem: (input: unknown): Promise<unknown> => ipcRenderer.invoke('learn:createItem', input),

@@ -40,6 +40,9 @@ export function SettingsPage(): JSX.Element {
   const [pending, setPending] = useState<ThemePalette | null>(null)
   const [fetching, setFetching] = useState(false)
   const [styleError, setStyleError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [dataMsg, setDataMsg] = useState<string | null>(null)
 
   useEffect(() => { void load() }, [load])
 
@@ -60,6 +63,34 @@ export function SettingsPage(): JSX.Element {
   const previewPending = (): void => {
     if (!pending) return
     applyTheme({ 'theme.mode': settings['theme.mode'], 'theme.accent': pending.accent, 'theme.custom': pending })
+  }
+
+  const doExport = async (): Promise<void> => {
+    setDataMsg(null)
+    setExporting(true)
+    try {
+      const r = await api.data.export()
+      setDataMsg(r.canceled ? '已取消导出' : `已导出到：${r.file}`)
+    } catch (e) {
+      setDataMsg(formatIpcError(e))
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const doImport = async (): Promise<void> => {
+    setDataMsg(null)
+    setImporting(true)
+    try {
+      const r = await api.data.import()
+      if (r.canceled) setDataMsg('已取消导入')
+      else if (r.ok) setDataMsg('导入成功，应用即将重启…')
+      else setDataMsg(r.error ?? '导入失败')
+    } catch (e) {
+      setDataMsg(formatIpcError(e))
+    } finally {
+      setImporting(false)
+    }
   }
 
   return (
@@ -216,10 +247,19 @@ export function SettingsPage(): JSX.Element {
 
       <Card title="数据">
         <div className="flex gap-2">
-          <button disabled className="px-3 py-1.5 text-sm rounded bg-[var(--border)] opacity-50 cursor-not-allowed">导出数据包</button>
-          <button disabled className="px-3 py-1.5 text-sm rounded bg-[var(--border)] opacity-50 cursor-not-allowed">导入数据包</button>
+          <button
+            onClick={() => void doExport()}
+            disabled={exporting}
+            className="px-3 py-1.5 text-sm rounded bg-[var(--accent)] text-white disabled:opacity-50"
+          >{exporting ? '导出中…' : '导出数据包'}</button>
+          <button
+            onClick={() => void doImport()}
+            disabled={importing}
+            className="px-3 py-1.5 text-sm rounded border border-[var(--border)] hover:border-[var(--accent)] disabled:opacity-50"
+          >{importing ? '导入中…' : '导入数据包'}</button>
         </div>
-        <p className="text-xs text-[var(--muted)] mt-2">导出 / 导入（含灵感图片）即将开放。</p>
+        <p className="text-xs text-[var(--muted)] mt-2">导出会把数据库与灵感图片打包成一个 .tar.gz；导入前会自动备份当前数据，失败可回退。</p>
+        {dataMsg && <div className="text-sm text-[var(--accent)] mt-2">{dataMsg}</div>}
       </Card>
 
       {error && <div className="text-sm text-red-400 mt-2">{error}</div>}
