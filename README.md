@@ -17,7 +17,7 @@ Electron 44（electron-vite）+ React 18 + TypeScript + Vite + Tailwind CSS + Zu
 ```bash
 npm install
 npm run dev        # 开发模式
-npm test           # Vitest（40 文件 / 684 用例）
+npm test           # Vitest（42 文件 / 695 用例）
 npm run typecheck  # tsc 两份配置，0 错误
 npm run build      # 构建三入口到 out/
 npx electron-builder   # 打 Windows 安装包到 release/
@@ -31,7 +31,7 @@ npx electron-builder   # 打 Windows 安装包到 release/
 | M2 | 日程（周/月视图、重复事件、提醒）、待办⇄日程互通、滚动备份 | ✅ |
 | M3 | 自我学习 / 开发 / 设计灵感 三个工作模块 | ✅ |
 | M4 | 健身 / 饮食 两个生活模块 + 今天页卡片接线 | ✅ |
-| M5 | 设置与数据（外观、提醒、导出导入、整体打磨） | ⬜ 进行中 |
+| M5 | 设置与数据（外观、提醒、导出导入、整体打磨） | ✅ |
 
 > 注：游戏娱乐模块（游玩/影视/书籍）已于 2026-10-11 移除。
 

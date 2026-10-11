@@ -1,7 +1,7 @@
 # 个人工作与生活管理系统 — 设计文档
 
-- 日期：2026-09-29
-- 状态：需求 + 页面设计评审通过，待实现
+- 日期：2026-09-29（M5 于 2026-10-11 完成，本文已回写 M2–M4 累计偏差）
+- 状态：需求 + 页面设计评审通过，M1–M5 已全部实现
 - 工作代号：LifeOS（正式名称可随时另起，不影响开发）
 - 使用方式：纯个人本地使用，单用户，无登录
 
@@ -23,7 +23,7 @@
 | 桌面壳 | Electron |
 | 前端 | React + TypeScript + Vite + Tailwind CSS + shadcn/ui |
 | 状态管理 | Zustand |
-| 数据库 | SQLite（better-sqlite3，WAL 模式） |
+| 数据库 | SQLite（`node:sqlite` 内置模块，WAL 模式） |
 | 打包 | electron-builder → Windows exe |
 
 **主进程职责**：窗口管理（记住位置尺寸、可选开机自启）、SQLite 读写、图片文件存取、系统通知、网站抓取（风格模仿）、备份调度。
@@ -119,8 +119,8 @@
 ### 5.7 饮食
 
 - 三餐卡片（早/中/晚+加餐）：已记录显示食物+热量，未记录虚线占位
-- 饮食计划横条：未来某天/某周的餐食安排
-- 今日摄入面板：热量进度条（vs 参考值）+ 三大营养素合计
+- 饮食计划横条：未来 7 天一个视口，可左右翻页（每页 ±7 天）
+- 今日摄入面板：纯数值展示（热量 + 蛋白质/碳水/脂肪合计），不做进度条与目标值（对齐 PRD 非目标）
 
 ### 5.8 游戏娱乐（已移除）
 
@@ -203,9 +203,9 @@
 
 | 表 | 关键字段 |
 |---|---|
-| `tasks` | `title`, `done`, `priority`(low/mid/high), `done_at`, `date`(归属日), `source_module`(可空: event/long_task/learn_item/dev_task…), `source_id`(可空) |
-| `events` | `title`, `start_at`, `end_at`, `location`, `note`, `repeat_type`(none/daily/weekly/monthly), `repeat_interval`, `repeat_until`, `remind_minutes` |
-| `long_tasks` | `title`, `start_date`, `end_date`, `color`, `source_module`(可空), `source_id`(可空) |
+| `tasks` | `title`, `done`, `priority`(low/mid/high), `done_at`, `date`(归属日), `source_module`(可空: `event` 或各模块), `source_id`(可空) |
+| `events` | `title`, `start_at`, `end_at`, `all_day`, `location`, `note`, `repeat_type`(none/daily/weekly/monthly), `repeat_interval`, `repeat_until`, `remind_minutes` |
+| `long_tasks` | `title`, `start_date`, `end_date`, `color`, `done`, `source_module`(可空), `source_id`(可空) |
 
 - 日程事件展开为具体日期的待办展示时，`tasks.source_module='event'`。
 - 长期任务在其日期区间内的每一天显示于时间轴。
@@ -219,27 +219,28 @@
 ### 7.3 开发
 
 - `projects`: `name`, `status`(planned/in_progress/paused/done), `description`, `start_date`, `end_date`(可空，供长期任务联动)
-- `dev_tasks`: `project_id`, `title`, `column`(todo/doing/done), `position`(列内排序), `start_date`, `due_date`(可空)
+- `dev_tasks`: `project_id`, `title`, `column_name`(todo/doing/done；`column` 是 SQLite 保留字), `position`(列内排序), `priority`(low/mid/high), `start_date`, `due_date`(可空)
 - `bugs`: `project_id`, `title`, `description`, `priority`(low/mid/high), `status`(open/fixing/fixed)
 - `snippets`: `title`, `code`, `language`, `tags`(JSON 数组)
-- `tech_notes`: `title`, `content`, `project_id`(可空)
+- `tech_notes`: `title`, `content`, `project_id`(可空，ON DELETE SET NULL)
 - `dev_sessions`: `task_id`, `started_at`, `ended_at`, `minutes`
 
 ### 7.4 设计灵感
 
 - `inspiration_boards`: `name`
-- `inspirations`: `board_id`(可空), `text`, `image_path`(可空), `source_url`(可空), `starred`, `tags`(JSON 数组)
+- `inspirations`: `board_id`(可空，ON DELETE SET NULL), `text`, `image_path`(可空), `source_url`(可空), `starred`, `tags`(JSON 数组)
+- 图片回显走自定义协议 `lifeos-image://`（CSP 需放行 `img-src`）；图片文件名由主进程生成，渲染进程不得提供路径
 
 ### 7.5 健身
 
-- `workout_plans`: `name`, `schedule`(JSON，如 `{"周一":"胸","周二":"背",…}`)
-- `workout_logs`: `plan_id`(可空), `date`, `content`(JSON，动作/重量/组数数组)
-- `body_metrics`: `date`, `weight`, `body_fat`(可空)
+- `workout_plans`: `name`, `schedule`(JSON，键为 ISO 星期数字，如 `{"1":"胸"}`)
+- `workout_logs`: `plan_id`(可空，ON DELETE SET NULL), `date`, `content`(JSON，动作/重量/组数数组)
+- `body_metrics`: `date`(UNIQUE，每天一条 upsert), `weight`, `body_fat`(可空)
 
 ### 7.6 饮食
 
-- `meals`: `date`, `type`(breakfast/lunch/dinner/snack), `items`(JSON，[{name, calories, protein, carbs, fat}])
-- `meal_plans`: `date`, `type`, `content`(文本/JSON)
+- `meals`: `date`, `type`(breakfast/lunch/dinner/snack；`(date,type)` 唯一), `items`(JSON，[{name, calories, protein, carbs, fat}])
+- `meal_plans`: `date`, `type`(`(date,type)` 唯一), `content`(纯文本)
 
 ### 7.7 游戏娱乐（已移除）
 
@@ -247,14 +248,14 @@
 
 ### 7.8 系统
 
-- `settings`: `key`, `value`
-- `themes`: `name`, `source_url`(可空), `colors`(JSON：主色/强调色/背景/文字等), `is_active`
+- `settings`: `key`, `value`（存所有设置：`timeline.*` / `remind.*` / `theme.mode` / `theme.accent` / `theme.custom`）
+- 主题不建独立 `themes` 表：浅色模式、主题色、网站风格模仿生成的整组色板都作为 `settings` 键持久化（`theme.custom` 为 `{bg,card,border,accent,text,muted}` 或 null）
 
 ## 8. 关键交互流程
 
 1. **日程 ⇄ 待办**：日程事件自动出现在「今天」页当日待办；待办点"转为日程"补时间后写入 `events` 并进入日历
 2. **长期任务上轴**：模块事项设起止日期后可在时间轴"标记为长期任务"；也可在时间轴直接创建独立任务；点击时间轴色块弹详情浮层
-3. **网站风格模仿**：设置 → 外观 → 粘贴网址 → 主进程抓取页面 → 提取配色/字体 → 主题预览 → 确认应用；失败（超时/403/解析失败）提示并允许手动选色
+3. **网站风格模仿**：设置 → 外观 → 粘贴网址 → 主进程抓取页面 → 提取配色（不做字体）→ 主题预览 → 确认应用；失败（超时/HTTP 错误/解析失败）提示并允许手动选色
 4. **事件提醒**：主进程轮询未来 24h 事件，到点前 `remind_minutes` 分钟发系统通知，点击唤起应用
 5. **看板拖拽**：任务卡片跨列拖动更新 `column` 与 `position`；进行中卡片可开始计时
 
