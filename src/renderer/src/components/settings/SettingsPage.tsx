@@ -101,10 +101,12 @@ export function SettingsPage(): JSX.Element {
         <Row label="主题模式">
           <div className="inline-flex rounded-md border border-[var(--border)] overflow-hidden">
             <button
+              data-theme-mode="dark"
               onClick={() => void set('theme.mode', 'dark')}
               className={`px-4 py-1.5 text-sm ${settings['theme.mode'] === 'dark' ? 'bg-[var(--accent)] text-white' : 'text-[var(--text)]'}`}
             >深色</button>
             <button
+              data-theme-mode="light"
               onClick={() => void set('theme.mode', 'light')}
               className={`px-4 py-1.5 text-sm ${settings['theme.mode'] === 'light' ? 'bg-[var(--accent)] text-white' : 'text-[var(--text)]'}`}
             >浅色</button>
@@ -115,6 +117,7 @@ export function SettingsPage(): JSX.Element {
             {ACCENTS.map((c) => (
               <button
                 key={c}
+                data-accent={c}
                 onClick={() => void set('theme.accent', c)}
                 className="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110"
                 style={{ background: c, borderColor: settings['theme.accent'] === c ? 'var(--text)' : 'transparent' }}
@@ -136,6 +139,7 @@ export function SettingsPage(): JSX.Element {
           <div className="space-y-2">
             <div className="flex gap-2">
               <input
+                data-style-url
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') void doFetch() }}
@@ -143,6 +147,7 @@ export function SettingsPage(): JSX.Element {
                 className={`${inputCls} flex-1`}
               />
               <button
+                data-style-fetch
                 onClick={() => void doFetch()}
                 disabled={fetching}
                 className="px-3 py-1.5 text-sm rounded bg-[var(--accent)] text-white disabled:opacity-50"
@@ -199,6 +204,7 @@ export function SettingsPage(): JSX.Element {
         <Row label="提醒开关">
           <label className="flex items-center gap-2 text-sm">
             <input
+              data-remind-enabled
               type="checkbox"
               checked={settings['remind.enabled']}
               onChange={(e) => void set('remind.enabled', e.target.checked)}
@@ -209,6 +215,7 @@ export function SettingsPage(): JSX.Element {
         </Row>
         <Row label="提前分钟数">
           <input
+            data-remind-lead
             type="number"
             min={0}
             max={1440}
@@ -223,6 +230,7 @@ export function SettingsPage(): JSX.Element {
       <Card title="时间轴">
         <Row label="显示范围">
           <select
+            data-timeline-range
             value={settings['timeline.rangeDays']}
             onChange={(e) => void set('timeline.rangeDays', Number(e.target.value) as 7 | 30 | 90)}
             className={inputCls}
@@ -235,6 +243,7 @@ export function SettingsPage(): JSX.Element {
         <Row label="已完成任务">
           <label className="flex items-center gap-2 text-sm">
             <input
+              data-timeline-showdone
               type="checkbox"
               checked={settings['timeline.showDone']}
               onChange={(e) => void set('timeline.showDone', e.target.checked)}
@@ -248,11 +257,13 @@ export function SettingsPage(): JSX.Element {
       <Card title="数据">
         <div className="flex gap-2">
           <button
+            data-export
             onClick={() => void doExport()}
             disabled={exporting}
             className="px-3 py-1.5 text-sm rounded bg-[var(--accent)] text-white disabled:opacity-50"
           >{exporting ? '导出中…' : '导出数据包'}</button>
           <button
+            data-import
             onClick={() => void doImport()}
             disabled={importing}
             className="px-3 py-1.5 text-sm rounded border border-[var(--border)] hover:border-[var(--accent)] disabled:opacity-50"
