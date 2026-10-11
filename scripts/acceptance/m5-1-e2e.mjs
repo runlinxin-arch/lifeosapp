@@ -105,6 +105,10 @@ await sleep(400)
 const lead = await evaluate(`document.querySelector('[data-remind-lead]').value`)
 check('提前分钟数可改为 30', lead === '30', `lead=${lead}`)
 
+// 问题 #4 回归：0=不提醒 的语义说明在页面上可见
+const remindHint = await evaluate(`document.querySelector('main').innerText.includes('0 表示不提醒')`)
+check('「0=不提醒」语义说明可见', remindHint === true)
+
 // ---------- 时间轴设置 ----------
 await evaluate(`(() => { const s = document.querySelector('[data-timeline-range]'); s.value = '7'; s.dispatchEvent(new Event('change', { bubbles: true })); return s.value; })()`)
 await sleep(400)

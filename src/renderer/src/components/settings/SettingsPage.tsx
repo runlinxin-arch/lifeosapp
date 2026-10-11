@@ -223,7 +223,7 @@ export function SettingsPage(): JSX.Element {
             onChange={(e) => void set('remind.leadMinutes', Number(e.target.value))}
             className={`${inputCls} w-24`}
           />
-          <span className="ml-2 text-xs text-[var(--muted)]">新建日程事件的默认提前量（0–1440）</span>
+          <span className="ml-2 text-xs text-[var(--muted)]">新建日程事件的默认提前量，0 表示不提醒（0–1440）</span>
         </Row>
       </Card>
 

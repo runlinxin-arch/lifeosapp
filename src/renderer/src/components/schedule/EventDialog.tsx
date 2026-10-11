@@ -139,9 +139,9 @@ export function EventDialog({ open, initial, defaultStart, onClose, onSubmit, on
               onChange={(e) => setRepeatInterval(Number(e.target.value))} className={inputCls} />
           </div>
           <div className="w-28">
-            <div className={labelCls}>提前提醒</div>
+            <div className={labelCls}>提前提醒（0=不提醒）</div>
             <input type="number" min={0} max={1440} value={remindMinutes}
-              onChange={(e) => setRemindMinutes(Number(e.target.value))} className={inputCls} />
+              onChange={(e) => setRemindMinutes(Number(e.target.value))} className={inputCls} title="提前提醒分钟数，0 表示不提醒" />
           </div>
         </div>
 

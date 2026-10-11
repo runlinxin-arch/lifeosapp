@@ -35,9 +35,10 @@ describe('dueReminders', () => {
     expect(dueReminders(now, list, new Set()).map((h) => h.eventId)).toEqual([2])
   })
 
-  it('提前量为 0 时到点才提醒', () => {
+  it('提前量为 0 视为关闭提醒（到点也不提醒）', () => {
     expect(dueReminders(new Date('2026-09-30T09:59:00'), [occ(1, '2026-09-30 10:00', 0)], new Set())).toHaveLength(0)
     expect(dueReminders(new Date('2026-09-30T10:00:00'), [occ(1, '2026-09-30 10:00', 0)], new Set())).toHaveLength(0)
+    expect(dueReminders(new Date('2026-09-30T10:01:00'), [occ(1, '2026-09-30 10:00', 0)], new Set())).toHaveLength(0)
   })
 
   it('已提醒过的发生项不再重复', () => {

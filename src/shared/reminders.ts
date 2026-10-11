@@ -18,6 +18,7 @@ export function reminderKey(o: Occurrence): string {
 /**
  * 命中条件：start - lead <= now < start，且该次发生尚未提醒过。
  * 应用在窗口期内启动会立刻补发；已经开始的事件不再打扰。
+ * 提前量 lead 为 0 时窗口为空，视为关闭该次提醒（永不触发）。
  */
 export function dueReminders(
   now: Date,
