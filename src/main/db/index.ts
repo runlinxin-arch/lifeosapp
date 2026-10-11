@@ -367,10 +367,16 @@ export function openDb(file: string): DatabaseSync {
     if (idx > 0) fs.mkdirSync(file.substring(0, idx), { recursive: true })
   }
   const db = new DatabaseSync(file)
-  db.exec('PRAGMA journal_mode = WAL')
-  db.exec('PRAGMA foreign_keys = ON')
-  runMigrations(db, MIGRATIONS)
-  return db
+  try {
+    db.exec('PRAGMA journal_mode = WAL')
+    db.exec('PRAGMA foreign_keys = ON')
+    runMigrations(db, MIGRATIONS)
+    return db
+  } catch (err) {
+    // 初始化失败（如损坏的库文件）时关闭连接，避免泄漏句柄导致后续删除文件 EPERM
+    try { db.close() } catch { /* 忽略 */ }
+    throw err
+  }
 }
 
 export function ensureDataDir(dir: string): void {

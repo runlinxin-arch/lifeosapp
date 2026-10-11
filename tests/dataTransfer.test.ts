@@ -68,4 +68,22 @@ describe('dataTransfer', () => {
     expect(task.title).toBe('保留任务')
     tgtDb.close()
   })
+
+  it('损坏的 app.db 导入时报错，且现有库不受影响（连接仍打开）', async () => {
+    const badDir = makeDir()
+    fs.writeFileSync(path.join(badDir, 'app.db'), 'not a sqlite database file')
+    const badFile = path.join(makeDir(), 'corrupt.tar.gz')
+    await tar.c({ gzip: true, file: badFile, cwd: badDir }, ['app.db'])
+
+    const tgtDir = makeDir()
+    ensureLayout(tgtDir)
+    const tgtDb = openDb(path.join(tgtDir, 'app.db'))
+    tgtDb.prepare('INSERT INTO tasks (title, date) VALUES (?, ?)').run('保留任务', '2026-10-11')
+
+    await expect(importData(tgtDb, tgtDir, badFile)).rejects.toThrow('损坏')
+
+    const task = tgtDb.prepare('SELECT title FROM tasks').get() as { title: string }
+    expect(task.title).toBe('保留任务')
+    tgtDb.close()
+  })
 })

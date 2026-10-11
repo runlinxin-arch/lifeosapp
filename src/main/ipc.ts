@@ -17,7 +17,7 @@ import { deleteImageFile, saveImageFile } from './images'
 import type { CaptureInput } from '@shared/types'
 import { getAllSettings, setSetting, type SettingsKey } from './db/settings'
 import { fetchStyle } from './themeStyle'
-import { exportData, importData, defaultExportFileName } from './dataTransfer'
+import { exportData, importData, defaultExportFileName, ImportError } from './dataTransfer'
 
 export function registerIpc(db: DatabaseSync, dataDir: string): void {
   ipcMain.handle('tasks:list', (_e, date: string) => {
@@ -79,6 +79,9 @@ export function registerIpc(db: DatabaseSync, dataDir: string): void {
       setTimeout(() => { app.relaunch(); app.exit(0) }, 500)
       return { canceled: false, ok: true }
     } catch (e) {
+      // 失败若发生在关库之后的替换阶段，库已关闭，必须重启由 startupOpen 从备份恢复
+      const dbClosed = e instanceof ImportError && e.dbClosed
+      if (dbClosed) setTimeout(() => { app.relaunch(); app.exit(0) }, 500)
       return { canceled: false, ok: false, error: e instanceof Error ? e.message : '导入失败' }
     }
   })
