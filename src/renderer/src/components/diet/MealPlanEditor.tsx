@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { MealPlan, MealType } from '@shared/types'
 import { MEAL_LABELS, MEAL_TYPES } from '@shared/dietContent'
 import { planText } from '@shared/dietStats'
@@ -12,8 +12,17 @@ export function MealPlanEditor({ date, plans }: { date: string; plans: MealPlan[
   const savePlan = useDietStore((s) => s.savePlan)
   const removePlan = useDietStore((s) => s.removePlan)
   const [draft, setDraft] = useState<Record<string, string>>({})
+  // onBlur 若直接读 draft 会拿到上一次 render 的旧值（失焦时 React 未必已重渲染），
+  // 导致"输入后立刻失焦"丢失最后一击。用 ref 存最新值。
+  const draftRef = useRef<Record<string, string>>({})
 
-  const valueOf = (type: MealType): string => draft[type] ?? planText(plans, date, type)
+  const setDraftValue = (type: MealType, value: string): void => {
+    const next = { ...draftRef.current, [type]: value }
+    draftRef.current = next
+    setDraft(next)
+  }
+
+  const valueOf = (type: MealType): string => draftRef.current[type] ?? planText(plans, date, type)
 
   const commit = async (type: MealType): Promise<void> => {
     const next = valueOf(type).trim()
@@ -24,10 +33,10 @@ export function MealPlanEditor({ date, plans }: { date: string; plans: MealPlan[
     } else if (existing?.content !== next) {
       await savePlan({ date, type, content: next })
     }
-    setDraft((d) => {
-      const { [type]: _drop, ...rest } = d
-      return rest
-    })
+    const rest = { ...draftRef.current }
+    delete rest[type]
+    draftRef.current = rest
+    setDraft(rest)
   }
 
   const plannedCount = MEAL_TYPES.filter((t) => planText(plans, date, t)).length
@@ -49,7 +58,7 @@ export function MealPlanEditor({ date, plans }: { date: string; plans: MealPlan[
             data-plan-input={type}
             value={valueOf(type)}
             placeholder="留空表示不计划"
-            onChange={(e) => setDraft((d) => ({ ...d, [type]: e.target.value }))}
+            onChange={(e) => setDraftValue(type, e.target.value)}
             onBlur={() => void commit(type)}
             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
             className={inputCls}
