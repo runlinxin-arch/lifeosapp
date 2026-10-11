@@ -3,12 +3,14 @@ import { formatDuration } from '@shared/duration'
 import { minutesByTask } from '@shared/devStats'
 import { datePart, timePart } from '@shared/dates'
 import { useDevStore } from '../../stores/devStore'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 export function TimeStatsPanel({ projectId }: { projectId: number }): JSX.Element {
   const tasks = useDevStore((s) => s.tasks)
   const sessions = useDevStore((s) => s.sessions)
   const removeSession = useDevStore((s) => s.removeSession)
   const [showAll, setShowAll] = useState(false)
+  const mc = useModuleColors()
 
   const taskIds = useMemo(() => new Set(tasks.map((t) => t.id)), [tasks])
   const projectSessions = useMemo(
@@ -34,7 +36,7 @@ export function TimeStatsPanel({ projectId }: { projectId: number }): JSX.Elemen
       <div className="grid grid-cols-3 gap-3 mb-3">
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3">
           <div className="text-[10px] text-[var(--muted)] mb-1">项目累计</div>
-          <div className="text-lg font-bold" style={{ color: '#3498db' }}>{formatDuration(total)}</div>
+          <div className="text-lg font-bold" style={{ color: mc.dev }}>{formatDuration(total)}</div>
         </div>
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3">
           <div className="text-[10px] text-[var(--muted)] mb-1">计时记录</div>

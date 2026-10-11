@@ -2,9 +2,9 @@ import { useState } from 'react'
 import type { Meal, MealPlan } from '@shared/types'
 import { plannedCount, recordedCount, upcomingDays } from '@shared/dietStats'
 import { addDays, formatCn, weekdayCn } from '@shared/dates'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 const DAYS = 7
-const AMBER = '#f39c12'
 
 /** 饮食计划横条：今天起 7 天一个视口，‹ › 左右翻页（每页 ±7 天），点击某天切换查看日期 */
 export function MealPlanStrip({ today, date, meals, plans, onSelect }: {
@@ -15,6 +15,7 @@ export function MealPlanStrip({ today, date, meals, plans, onSelect }: {
   onSelect: (date: string) => void
 }): JSX.Element {
   const [page, setPage] = useState(0)
+  const mc = useModuleColors()
   const start = addDays(today, page * DAYS)
   const days = upcomingDays(start, DAYS)
 
@@ -64,14 +65,14 @@ export function MealPlanStrip({ today, date, meals, plans, onSelect }: {
               className="shrink-0 w-[68px] rounded px-1 py-1 text-center border transition-colors"
               style={{
                 background: selected ? 'rgba(243,156,18,0.18)' : 'var(--bg)',
-                borderColor: selected ? AMBER : 'var(--border)',
+                borderColor: selected ? mc.diet : 'var(--border)',
                 outline: isToday && !selected ? '1px solid var(--accent)' : 'none'
               }}
               title={`${d} ${recorded} 餐已记录 / ${planned} 餐已编排`}
             >
               <div className="text-[10px] font-bold">{formatCn(d)}</div>
               <div className="text-[9px] text-[var(--muted)]">{isToday ? '今天' : weekdayCn(d)}</div>
-              <div className="text-[9px] mt-0.5" style={{ color: recorded ? AMBER : 'var(--muted)' }}>
+              <div className="text-[9px] mt-0.5" style={{ color: recorded ? mc.diet : 'var(--muted)' }}>
                 {recorded} 餐
               </div>
               <div className="text-[9px]" style={{ color: planned ? 'var(--accent)' : 'var(--muted)' }}>

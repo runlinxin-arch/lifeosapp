@@ -4,8 +4,7 @@ import { MEAL_LABELS } from '@shared/dietContent'
 import { sumNutrition } from '@shared/dietStats'
 import { useDietStore } from '../../stores/dietStore'
 import { MealItemEditor } from './MealItemEditor'
-
-const AMBER = '#f39c12'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 /** 单餐卡片：已记录显示食物+热量，未记录显示虚线占位（PRD L109） */
 export function MealCard({ date, type, meal, planned }: {
@@ -16,6 +15,7 @@ export function MealCard({ date, type, meal, planned }: {
 }): JSX.Element {
   const saveMeal = useDietStore((s) => s.saveMeal)
   const removeMeal = useDietStore((s) => s.removeMeal)
+  const mc = useModuleColors()
 
   const [editing, setEditing] = useState(false)
   const [items, setItems] = useState<MealItem[]>([])
@@ -36,7 +36,7 @@ export function MealCard({ date, type, meal, planned }: {
       <div className="flex items-center gap-2 mb-2">
         <span className="text-sm font-bold">{MEAL_LABELS[type]}</span>
         {total && (
-          <span className="text-[11px]" style={{ color: AMBER }} data-meal-calories={total.calories}>
+          <span className="text-[11px]" style={{ color: mc.diet }} data-meal-calories={total.calories}>
             {total.calories.toLocaleString()} kcal
           </span>
         )}
@@ -45,7 +45,7 @@ export function MealCard({ date, type, meal, planned }: {
             data-action={`log-${type}`}
             onClick={startEdit}
             className="ml-auto text-[10px] px-2 py-1 rounded text-white"
-            style={{ background: AMBER }}
+            style={{ background: mc.diet }}
           >记录这一餐</button>
         )}
       </div>
@@ -110,7 +110,7 @@ export function MealCard({ date, type, meal, planned }: {
               data-action={`save-${type}`}
               onClick={() => void submit()}
               className="text-xs px-3 py-1.5 rounded text-white"
-              style={{ background: AMBER }}
+              style={{ background: mc.diet }}
             >保存</button>
             <button onClick={() => setEditing(false)} className="text-xs px-3 py-1.5 rounded bg-[var(--border)]">取消</button>
             <span className="text-[9px] text-[var(--muted)]">食物可留空，只记「这顿吃了」</span>

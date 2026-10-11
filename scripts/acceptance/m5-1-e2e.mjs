@@ -115,6 +115,20 @@ await sleep(600)
 const styleErr = await evaluate(`document.querySelector('main').innerText.includes('网址格式不正确')`)
 check('网站风格模仿：无效网址报错', styleErr === true)
 
+// ---------- 浅色模式下模块色文字变深（问题 #1 回归） ----------
+await evaluate(`document.querySelector('[data-theme-mode="light"]').click(); true`)
+await sleep(300)
+await evaluate(`[...document.querySelectorAll('aside button')].find(b => b.textContent.includes('今天'))?.click(); true`)
+await sleep(900)
+const learnColor = await evaluate(`
+  (() => {
+    const card = document.querySelector('[data-today-card="learning"]');
+    const el = [...card.querySelectorAll('span.font-bold')].find(s => s.style.color !== '');
+    return el ? getComputedStyle(el).color : null;
+  })()
+`)
+check('浅色下模块色文字变深（学习绿 → 深绿 #15803d）', learnColor === 'rgb(21, 128, 61)', `color=${learnColor}`)
+
 console.log('')
 console.log(`===== ${results.filter((r) => r.pass).length}/${results.length} 通过 =====`)
 for (const r of results.filter((x) => !x.pass)) console.log('  未通过: ' + r.label)

@@ -5,6 +5,7 @@ import { formatDuration } from '@shared/duration'
 import { minutesByTask } from '@shared/devStats'
 import { useDevStore } from '../../stores/devStore'
 import { useDevTimerStore } from '../../stores/devTimerStore'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 const COLUMN_LABEL: Record<DevColumn, string> = { todo: '待办', doing: '进行中', done: '已完成' }
 const PRIORITY_DOT: Record<Priority, { color: string; label: string }> = {
@@ -182,6 +183,7 @@ function TaskCard(props: {
 }): JSX.Element {
   const { task } = props
   const dot = PRIORITY_DOT[task.priority]
+  const mc = useModuleColors()
 
   return (
     <div
@@ -206,7 +208,7 @@ function TaskCard(props: {
       <div className="mt-1 flex items-center gap-2 text-[9px] text-[var(--muted)]">
         {task.due_date && <span>截止 {task.due_date.slice(5)}</span>}
         {props.minutes > 0 && <span>已计 {formatDuration(props.minutes)}</span>}
-        {props.running && <span style={{ color: '#3498db' }}>计时中</span>}
+        {props.running && <span style={{ color: mc.dev }}>计时中</span>}
       </div>
 
       <div className="mt-1 flex items-center gap-1 opacity-0 group-hover:opacity-100">

@@ -5,6 +5,7 @@ import { weekDays } from '@shared/layout'
 import { formatCn } from '@shared/dates'
 import { useLearnStore } from '../../stores/learnStore'
 import { useToday } from '../../hooks/useToday'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 const BAR_AREA_H = 64
 const WEEK_LABEL = ['一', '二', '三', '四', '五', '六', '日']
@@ -12,6 +13,7 @@ const WEEK_LABEL = ['一', '二', '三', '四', '五', '六', '日']
 export function LearnStatsPanel(): JSX.Element {
   const sessions = useLearnStore((s) => s.sessions)
   const today = useToday()
+  const mc = useModuleColors()
 
   const days = useMemo(() => weekDays(today), [today])
   const perDay = useMemo(() => dailyMinutes(sessions, days), [sessions, days])
@@ -25,7 +27,7 @@ export function LearnStatsPanel(): JSX.Element {
       <div className="grid grid-cols-3 gap-3 mb-3">
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3">
           <div className="text-[10px] text-[var(--muted)] mb-1">今日学习</div>
-          <div className="text-lg font-bold" style={{ color: '#4ade80' }}>{formatDuration(todayMinutes)}</div>
+          <div className="text-lg font-bold" style={{ color: mc.learning }}>{formatDuration(todayMinutes)}</div>
         </div>
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3">
           <div className="text-[10px] text-[var(--muted)] mb-1">本周学习</div>

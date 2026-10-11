@@ -3,8 +3,8 @@ import type { MealPlan, MealType } from '@shared/types'
 import { MEAL_LABELS, MEAL_TYPES } from '@shared/dietContent'
 import { planText } from '@shared/dietStats'
 import { useDietStore } from '../../stores/dietStore'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
-const AMBER = '#f39c12'
 const inputCls = 'flex-1 bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1 text-xs outline-none focus:border-[var(--accent)]'
 
 /** 某天四个餐次的计划文本编辑：失焦或回车即保存；清空并保存 = 删除该计划 */
@@ -15,6 +15,7 @@ export function MealPlanEditor({ date, plans }: { date: string; plans: MealPlan[
   // onBlur 若直接读 draft 会拿到上一次 render 的旧值（失焦时 React 未必已重渲染），
   // 导致"输入后立刻失焦"丢失最后一击。用 ref 存最新值。
   const draftRef = useRef<Record<string, string>>({})
+  const mc = useModuleColors()
 
   const setDraftValue = (type: MealType, value: string): void => {
     const next = { ...draftRef.current, [type]: value }
@@ -75,7 +76,7 @@ export function MealPlanEditor({ date, plans }: { date: string; plans: MealPlan[
       ))}
 
       <div className="text-[9px] text-[var(--muted)] mt-1" style={{ color: 'var(--muted)' }}>
-        填写后自动保存 · <span style={{ color: AMBER }}>为未来日期编排</span>：先在上方横条选日期
+        填写后自动保存 · <span style={{ color: mc.diet }}>为未来日期编排</span>：先在上方横条选日期
       </div>
     </div>
   )

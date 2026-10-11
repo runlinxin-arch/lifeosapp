@@ -1,10 +1,12 @@
 import type { WorkoutLog } from '@shared/types'
 import { totalVolume } from '@shared/fitnessStats'
 import { formatCn } from '@shared/dates'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 /** 最近打卡历史（PRD 4.5「保留历史」）：按日期倒序展示，最多 6 条 */
 export function WorkoutHistory({ logs, limit = 6 }: { logs: WorkoutLog[]; limit?: number }): JSX.Element {
   const rows = logs.slice(0, limit)
+  const mc = useModuleColors()
 
   return (
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3" data-workout-history>
@@ -27,7 +29,7 @@ export function WorkoutHistory({ logs, limit = 6 }: { logs: WorkoutLog[]; limit?
                   {l.content.length === 0 ? '只记了「练了」' : l.content.map((i) => i.name).join('、')}
                 </span>
                 <span className="text-[var(--muted)] shrink-0">{l.content.length} 个动作</span>
-                <span className="shrink-0 w-20 text-right" style={{ color: '#e74c3c' }}>
+                <span className="shrink-0 w-20 text-right" style={{ color: mc.fitness }}>
                   {volume.toLocaleString()} kg
                 </span>
               </div>

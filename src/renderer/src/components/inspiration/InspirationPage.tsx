@@ -6,6 +6,7 @@ import { Waterfall, useColumnCount } from './WaterfallGrid'
 import { CaptureDialog } from './CaptureDialog'
 import { InspirationEditDialog } from './InspirationEditDialog'
 import { BoardView } from './BoardView'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 export function InspirationPage(): JSX.Element {
   const {
@@ -17,6 +18,7 @@ export function InspirationPage(): JSX.Element {
   const [editing, setEditing] = useState<Inspiration | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const columnCount = useColumnCount(containerRef)
+  const mc = useModuleColors()
 
   useEffect(() => { void load() }, [load])
 
@@ -74,7 +76,7 @@ export function InspirationPage(): JSX.Element {
           <button
             onClick={() => setCaptureOpen(true)}
             className="text-xs px-3 py-1.5 rounded-lg text-white"
-            style={{ background: '#e879c9' }}
+            style={{ background: mc.inspiration }}
           >＋ 捕获</button>
         </div>
       </div>
@@ -106,8 +108,8 @@ export function InspirationPage(): JSX.Element {
                   onClick={() => toggleTag(t)}
                   className="text-[10px] px-1.5 py-0.5 rounded border"
                   style={{
-                    borderColor: on ? '#e879c9' : 'var(--border)',
-                    color: on ? '#e879c9' : 'var(--muted)',
+                    borderColor: on ? mc.inspiration : 'var(--border)',
+                    color: on ? mc.inspiration : 'var(--muted)',
                     background: on ? 'rgba(232,121,201,0.12)' : 'transparent'
                   }}
                 >{t}</button>

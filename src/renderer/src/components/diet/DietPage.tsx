@@ -7,11 +7,11 @@ import { MealCard } from './MealCard'
 import { NutritionPanel } from './NutritionPanel'
 import { MealPlanStrip } from './MealPlanStrip'
 import { MealPlanEditor } from './MealPlanEditor'
-
-const AMBER = '#f39c12'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 export function DietPage(): JSX.Element {
   const { meals, plans, date, today, error, clearError, load, setDate } = useDietStore()
+  const mc = useModuleColors()
 
   useEffect(() => { void load() }, [load])
 
@@ -41,7 +41,7 @@ export function DietPage(): JSX.Element {
               data-action="back-today"
               onClick={() => setDate(today)}
               className="text-[10px] px-2 py-1 rounded text-white"
-              style={{ background: AMBER }}
+              style={{ background: mc.diet }}
             >回到今天</button>
           )}
         </div>

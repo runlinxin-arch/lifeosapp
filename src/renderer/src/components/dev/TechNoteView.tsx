@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { TechNote, TechNoteInput } from '@shared/types'
 import { useDevStore } from '../../stores/devStore'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 const inputCls = 'bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1 text-xs outline-none focus:border-[var(--accent)]'
 const EMPTY: TechNoteInput = { title: '', content: '', projectId: null }
@@ -11,6 +12,7 @@ export function TechNoteView(): JSX.Element {
   const createNote = useDevStore((s) => s.createNote)
   const updateNote = useDevStore((s) => s.updateNote)
   const removeNote = useDevStore((s) => s.removeNote)
+  const mc = useModuleColors()
 
   const [draft, setDraft] = useState<TechNoteInput>(EMPTY)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -108,7 +110,7 @@ export function TechNoteView(): JSX.Element {
                   className="text-[9px] px-1.5 py-0.5 rounded"
                   style={{
                     background: n.project_id === null ? 'var(--border)' : 'rgba(52,152,219,0.15)',
-                    color: n.project_id === null ? 'var(--muted)' : '#3498db'
+                    color: n.project_id === null ? 'var(--muted)' : mc.dev
                   }}
                 >{projectName(n.project_id)}</span>
                 <button

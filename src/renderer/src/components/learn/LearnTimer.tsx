@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { elapsedToMinutes, formatElapsed } from '@shared/duration'
 import { useLearnStore } from '../../stores/learnStore'
 import { useToday } from '../../hooks/useToday'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 export function LearnTimer({ itemId }: { itemId: number }): JSX.Element {
   const createSession = useLearnStore((s) => s.createSession)
   const today = useToday()
+  const mc = useModuleColors()
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -41,7 +43,7 @@ export function LearnTimer({ itemId }: { itemId: number }): JSX.Element {
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg p-3 mb-3">
       <div className="text-xs text-[var(--muted)] mb-2">学习计时</div>
       <div className="flex items-center gap-3">
-        <span className="text-2xl font-mono tabular-nums" style={{ color: running ? '#4ade80' : undefined }}>
+        <span className="text-2xl font-mono tabular-nums" style={{ color: running ? mc.learning : undefined }}>
           {formatElapsed(elapsed)}
         </span>
         {running

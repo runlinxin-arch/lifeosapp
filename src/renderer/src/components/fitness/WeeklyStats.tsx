@@ -4,12 +4,14 @@ import { totalVolume, workoutCount, workoutStreak } from '@shared/fitnessStats'
 import { weekDays } from '@shared/layout'
 import { formatCn } from '@shared/dates'
 import { useToday } from '../../hooks/useToday'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 const DAY_LABEL = ['一', '二', '三', '四', '五', '六', '日']
 
 /** 本周统计：训练次数 / 总容量 / 连续打卡 */
 export function WeeklyStats({ logs }: { logs: WorkoutLog[] }): JSX.Element {
   const today = useToday()
+  const mc = useModuleColors()
   const days = weekDays(today)
 
   const stats = useMemo(() => ({
@@ -27,7 +29,7 @@ export function WeeklyStats({ logs }: { logs: WorkoutLog[] }): JSX.Element {
       <div className="grid grid-cols-3 gap-2 mb-3">
         <div>
           <div className="text-[10px] text-[var(--muted)]">训练次数</div>
-          <div className="text-lg font-bold" style={{ color: '#e74c3c' }} data-stat-count={stats.count}>
+          <div className="text-lg font-bold" style={{ color: mc.fitness }} data-stat-count={stats.count}>
             {stats.count}
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { formatElapsed } from '@shared/duration'
 import { useDevTimerStore } from '../../stores/devTimerStore'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 /** 常驻计时器：跨页签、跨页面切换都不消失（状态在 store 里） */
 export function DevTimer(): JSX.Element | null {
@@ -9,6 +10,7 @@ export function DevTimer(): JSX.Element | null {
   const cancel = useDevTimerStore((s) => s.cancel)
   const [elapsed, setElapsed] = useState(0)
   const [busy, setBusy] = useState(false)
+  const mc = useModuleColors()
 
   useEffect(() => {
     if (!running) { setElapsed(0); return }
@@ -32,7 +34,7 @@ export function DevTimer(): JSX.Element | null {
       <span className="text-xs text-[var(--muted)] max-w-[160px] truncate" title={running.taskTitle}>
         {running.taskTitle}
       </span>
-      <span className="text-sm font-mono tabular-nums" style={{ color: '#3498db' }}>{formatElapsed(elapsed)}</span>
+      <span className="text-sm font-mono tabular-nums" style={{ color: mc.dev }}>{formatElapsed(elapsed)}</span>
       <button
         onClick={() => void onStop()}
         disabled={busy}

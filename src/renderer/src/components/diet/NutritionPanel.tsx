@@ -1,13 +1,13 @@
 import type { Meal } from '@shared/types'
 import { MEAL_LABELS, MEAL_TYPES } from '@shared/dietContent'
 import { dayNutrition, nutritionByMeal } from '@shared/dietStats'
-
-const AMBER = '#f39c12'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 const fmt = (n: number): string => (Number.isInteger(n) ? n.toLocaleString() : n.toFixed(1))
 
 /** 每日摄入面板：热量 + 三大营养素合计，纯数值展示（PRD L109；不做目标值与进度条） */
 export function NutritionPanel({ date, meals }: { date: string; meals: Meal[] }): JSX.Element {
+  const mc = useModuleColors()
   const total = dayNutrition(meals, date)
   const byMeal = nutritionByMeal(meals, date)
   const empty = total.calories === 0 && total.protein === 0 && total.carbs === 0 && total.fat === 0
@@ -20,7 +20,7 @@ export function NutritionPanel({ date, meals }: { date: string; meals: Meal[] })
       </div>
 
       <div className="flex items-end gap-2 mb-3">
-        <span className="text-2xl font-bold leading-none" style={{ color: AMBER }} data-nutrition-calories={total.calories}>
+        <span className="text-2xl font-bold leading-none" style={{ color: mc.diet }} data-nutrition-calories={total.calories}>
           {fmt(total.calories)}
         </span>
         <span className="text-[10px] text-[var(--muted)] mb-0.5">kcal</span>

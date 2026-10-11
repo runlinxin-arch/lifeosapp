@@ -17,6 +17,7 @@ import { dayNutrition, mealByType, recordedCount } from '@shared/dietStats'
 import { useFitnessStore } from '../../stores/fitnessStore'
 import { useDietStore } from '../../stores/dietStore'
 import { STATUS_META as PROJECT_STATUS_META } from '../dev/ProjectList'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 function ModuleCard(props: {
   cardKey: string
@@ -73,6 +74,7 @@ export function TodayCards({ onNavigate }: { onNavigate?: (page: PageKey) => voi
 
   const meals = useDietStore((s) => s.meals)
   const dietLoad = useDietStore((s) => s.load)
+  const mc = useModuleColors()
 
   useEffect(() => { void learnLoad() }, [learnLoad])
   useEffect(() => { void devLoad() }, [devLoad])
@@ -118,13 +120,13 @@ export function TodayCards({ onNavigate }: { onNavigate?: (page: PageKey) => voi
         cardKey="learning"
         icon="📖"
         title="自我学习"
-        accent="#4ade80"
+        accent={mc.learning}
         accentLabel="学习"
         onOpen={onNavigate ? () => onNavigate('learning') : undefined}
       >
         <div className="flex items-center gap-3 text-xs mb-2">
           <span className="text-[var(--muted)]">今日已学</span>
-          <span className="font-bold" style={{ color: '#4ade80' }}>{formatDuration(todayMinutes)}</span>
+          <span className="font-bold" style={{ color: mc.learning }}>{formatDuration(todayMinutes)}</span>
           {learningCount > 0 && (
             <span className="text-[var(--muted)]">· 学习中 {learningCount} 项</span>
           )}
@@ -155,7 +157,7 @@ export function TodayCards({ onNavigate }: { onNavigate?: (page: PageKey) => voi
         cardKey="dev"
         icon="💻"
         title="开发"
-        accent="#3498db"
+        accent={mc.dev}
         accentLabel="开发"
         onOpen={onNavigate ? () => onNavigate('dev') : undefined}
       >
@@ -192,13 +194,13 @@ export function TodayCards({ onNavigate }: { onNavigate?: (page: PageKey) => voi
         cardKey="fitness"
         icon="🏋️"
         title="健身"
-        accent="#e74c3c"
+        accent={mc.fitness}
         accentLabel="健身"
         onOpen={onNavigate ? () => onNavigate('fitness') : undefined}
       >
         <div className="flex items-center gap-3 text-xs mb-2">
           <span className="text-[var(--muted)]">今天该练</span>
-          <span className="font-bold" style={{ color: '#e74c3c' }} data-fitness-planned={todayPlanned ?? ''}>
+          <span className="font-bold" style={{ color: mc.fitness }} data-fitness-planned={todayPlanned ?? ''}>
             {todayPlanned ?? '未安排'}
           </span>
           <span className="text-[var(--muted)] ml-auto" data-fitness-week-count={weekWorkouts}>
@@ -221,13 +223,13 @@ export function TodayCards({ onNavigate }: { onNavigate?: (page: PageKey) => voi
         cardKey="diet"
         icon="🍚"
         title="饮食"
-        accent="#f39c12"
+        accent={mc.diet}
         accentLabel="饮食"
         onOpen={onNavigate ? () => onNavigate('diet') : undefined}
       >
         <div className="flex items-center gap-3 text-xs mb-2">
           <span className="text-[var(--muted)]">今日摄入</span>
-          <span className="font-bold" style={{ color: '#f39c12' }} data-diet-calories={todayIntake.calories}>
+          <span className="font-bold" style={{ color: mc.diet }} data-diet-calories={todayIntake.calories}>
             {todayIntake.calories.toLocaleString()}
           </span>
           <span className="text-[10px] text-[var(--muted)]">kcal</span>
@@ -246,9 +248,9 @@ export function TodayCards({ onNavigate }: { onNavigate?: (page: PageKey) => voi
                 data-meal-logged={logged ? 'true' : 'false'}
                 className="text-center text-[10px] py-1 rounded border"
                 style={{
-                  borderColor: logged ? '#f39c12' : 'var(--border)',
+                  borderColor: logged ? mc.diet : 'var(--border)',
                   borderStyle: logged ? 'solid' : 'dashed',
-                  color: logged ? '#f39c12' : 'var(--muted)'
+                  color: logged ? mc.diet : 'var(--muted)'
                 }}
               >
                 <div>{MEAL_LABELS[t]}</div>

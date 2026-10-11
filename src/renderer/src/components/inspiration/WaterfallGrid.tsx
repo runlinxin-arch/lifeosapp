@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Inspiration } from '@shared/types'
 import { imageUrl } from '@shared/imageName'
 import { useInspStore } from '../../stores/inspStore'
+import { useModuleColors } from '../../hooks/useModuleColors'
 
 /** 自适应列数：窄屏 2 列，中屏 3 列，宽屏 4 列 */
 export function columnsForWidth(width: number): number {
@@ -18,6 +19,7 @@ export function InspirationCard(props: {
   const toggleStar = useInspStore((s) => s.toggleStar)
   const remove = useInspStore((s) => s.remove)
   const { item } = props
+  const mc = useModuleColors()
 
   return (
     <div
@@ -61,7 +63,7 @@ export function InspirationCard(props: {
         {(item.tags.length > 0 || props.boardName) && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
             {props.boardName && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(232,121,201,0.15)', color: '#e879c9' }}>
+              <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(232,121,201,0.15)', color: mc.inspiration }}>
                 🗂 {props.boardName}
               </span>
             )}
