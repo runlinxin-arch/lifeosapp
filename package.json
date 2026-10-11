@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "description": "LifeOS - 个人工作与生活管理系统",
+  "author": "runlinxin-arch",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/runlinxin-arch/lifeosapp"
+  },
   "main": "out/main/index.js",
   "build": {
     "appId": "com.lifeos.app",

@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Build installer
+        run: npx electron-builder --win
+
+      - name: Create release and upload installer
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if (gh release view $tag --json id 2>$null) {
+            Write-Output "Release $tag already exists, skip"
+          } else {
+            $exe = Get-ChildItem release -Filter 'LifeOS*.exe' | Select-Object -First 1 -ExpandProperty FullName
+            gh release create $tag $exe --title "LifeOS $tag" --generate-notes
+          }

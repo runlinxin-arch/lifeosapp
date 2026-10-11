@@ -4,6 +4,12 @@
 
 > 单用户、纯本地：数据全部存在 `%APPDATA%\LifeOS\`，不联网、无账号。
 
+[![CI](https://github.com/runlinxin-arch/lifeosapp/actions/workflows/ci.yml/badge.svg)](https://github.com/runlinxin-arch/lifeosapp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/runlinxin-arch/lifeosapp/releases/latest)
+
+**下载安装包**：[LifeOS Setup 0.1.0.exe](https://github.com/runlinxin-arch/lifeosapp/releases/latest)（Windows）
+
 ## 技术栈
 
 Electron 44（electron-vite）+ React 18 + TypeScript + Vite + Tailwind CSS + Zustand + `node:sqlite` + Vitest + electron-builder
@@ -17,7 +23,7 @@ Electron 44（electron-vite）+ React 18 + TypeScript + Vite + Tailwind CSS + Zu
 ```bash
 npm install
 npm run dev        # 开发模式
-npm test           # Vitest（42 文件 / 695 用例）
+npm test           # Vitest（46 文件 / 710 用例）
 npm run typecheck  # tsc 两份配置，0 错误
 npm run build      # 构建三入口到 out/
 npx electron-builder   # 打 Windows 安装包到 release/
@@ -71,4 +77,4 @@ docs/         设计文档、执行计划、验收记录、截图
 
 ## 许可
 
-未指定（如需开源请补充 LICENSE）。
+[MIT](LICENSE) © 2026 runlinxin-arch
