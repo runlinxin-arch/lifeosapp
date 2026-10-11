@@ -22,7 +22,7 @@ const GROUPS: { label: string; items: { key: PageKey; icon: string; label: strin
       { key: 'diet', icon: '🍚', label: '饮食' }
     ]
   },
-  { label: '', items: [{ key: 'settings', icon: '⚙️', label: '设置和数据', disabled: true }] }
+  { label: '', items: [{ key: 'settings', icon: '⚙️', label: '设置和数据' }] }
 ]
 
 export function Sidebar({ active, onNavigate }: { active: PageKey; onNavigate: (p: PageKey) => void }): JSX.Element {
