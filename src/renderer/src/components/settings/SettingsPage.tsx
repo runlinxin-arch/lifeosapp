@@ -269,7 +269,7 @@ export function SettingsPage(): JSX.Element {
             className="px-3 py-1.5 text-sm rounded border border-[var(--border)] hover:border-[var(--accent)] disabled:opacity-50"
           >{importing ? '导入中…' : '导入数据包'}</button>
         </div>
-        <p className="text-xs text-[var(--muted)] mt-2">导出会把数据库与灵感图片打包成一个 .tar.gz；导入前会自动备份当前数据，失败可回退。</p>
+        <p className="text-xs text-[var(--muted)] mt-2">导出会把数据库与灵感图片打包成一个 .lifeos 文件；导入前会自动备份当前数据，失败可回退。</p>
         {dataMsg && <div className="text-sm text-[var(--accent)] mt-2">{dataMsg}</div>}
       </Card>
 

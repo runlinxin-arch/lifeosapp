@@ -11,11 +11,15 @@ export const EXPORT_IMAGES = 'images'
 
 const pad = (n: number): string => String(n).padStart(2, '0')
 
-/** 默认导出文件名：LifeOS-backup-<时间戳>.tar.gz */
+/**
+ * 默认导出文件名：LifeOS-backup-<时间戳>.lifeos
+ * 用单段扩展名 .lifeos（内容仍是 gzip+tar），避免 Windows 文件对话框对
+ * 多段扩展名（如 .tar.gz）过滤时只匹配最后一段、导致导入时看不到文件的问题。
+ */
 export function defaultExportFileName(now: Date = new Date()): string {
   const d = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
   const t = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-  return `LifeOS-backup-${d}-${t}.tar.gz`
+  return `LifeOS-backup-${d}-${t}.lifeos`
 }
 
 /**

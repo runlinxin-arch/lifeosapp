@@ -77,7 +77,7 @@ export function registerIpc(db: DatabaseSync, dataDir: string): void {
     const { canceled, filePath } = await dialog.showSaveDialog({
       title: '导出数据包',
       defaultPath: path.join(app.getPath('documents'), defaultExportFileName()),
-      filters: [{ name: 'LifeOS 数据包', extensions: ['tar.gz'] }]
+      filters: [{ name: 'LifeOS 数据包', extensions: ['lifeos'] }]
     })
     if (canceled || !filePath) return { canceled: true }
     await exportData(db, dataDir, filePath)
@@ -88,7 +88,7 @@ export function registerIpc(db: DatabaseSync, dataDir: string): void {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       title: '导入数据包',
       properties: ['openFile'],
-      filters: [{ name: 'LifeOS 数据包', extensions: ['tar.gz'] }]
+      filters: [{ name: 'LifeOS 数据包', extensions: ['lifeos'] }]
     })
     if (canceled || !filePaths.length) return { canceled: true }
     try {

@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import * as tar from 'tar'
 import { openDb } from '../src/main/db'
-import { exportData, importData } from '../src/main/dataTransfer'
+import { exportData, importData, defaultExportFileName } from '../src/main/dataTransfer'
 
 const tmpDirs: string[] = []
 function makeDir(): string {
@@ -85,5 +85,13 @@ describe('dataTransfer', () => {
     const task = tgtDb.prepare('SELECT title FROM tasks').get() as { title: string }
     expect(task.title).toBe('保留任务')
     tgtDb.close()
+  })
+})
+
+describe('defaultExportFileName', () => {
+  it('导出文件名为单段扩展名 .lifeos（避免多段扩展名过滤问题）', () => {
+    const name = defaultExportFileName(new Date('2026-10-11T22:30:00'))
+    expect(name).toBe('LifeOS-backup-20261011-223000.lifeos')
+    expect(name.endsWith('.lifeos')).toBe(true)
   })
 })
