@@ -52,6 +52,10 @@ await evaluate(`
   true;
 `)
 
+// ---------- 首屏主题注入（问题 #3 回归：主进程启动时注入主题，避免闪深色） ----------
+const initThemeBg = await evaluate(`window.__lifeosTheme ? window.__lifeosTheme.bg : null`)
+check('首屏主题注入生效（__lifeosTheme.bg = 深色默认）', initThemeBg === '#1e1f24', `bg=${initThemeBg}`)
+
 // ---------- 进入设置页 ----------
 await evaluate(`[...document.querySelectorAll('aside button')].find(b => b.textContent.includes('设置和数据'))?.click(); true`)
 await sleep(900)

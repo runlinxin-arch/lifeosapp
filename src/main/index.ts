@@ -6,9 +6,15 @@ import { registerIpc } from './ipc'
 import { startReminders } from './reminders'
 import { registerImageProtocol, registerImageScheme } from './images'
 import { resolveDataDir, DATA_DIR_ENV } from './paths'
+import { getAllSettings } from './db/settings'
+import { resolveTheme } from '@shared/theme'
 
 // 必须在 app ready 之前注册，否则 lifeos-image:// 会被当成普通 URL 拦掉
 registerImageScheme()
+
+// 启动时从设置解析出的窗口背景色与主题参数（浅色用户首屏不闪深色）
+let windowBg = '#1e1f24'
+let windowThemeArg = ''
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -16,11 +22,12 @@ function createWindow(): BrowserWindow {
     height: 800,
     minWidth: 960,
     minHeight: 600,
-    backgroundColor: '#1e1f24',
+    backgroundColor: windowBg,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      additionalArguments: [`--lifeos-theme=${windowThemeArg}`]
     }
   })
 
@@ -48,6 +55,11 @@ void app.whenReady().then(() => {
   registerIpc(db, dataDir)
   // 必须在窗口加载页面前挂上，否则首屏图片会 404
   registerImageProtocol()
+
+  const settings = getAllSettings(db)
+  const theme = resolveTheme(settings['theme.mode'], settings['theme.accent'], settings['theme.custom'])
+  windowBg = theme.bg
+  windowThemeArg = encodeURIComponent(JSON.stringify(theme))
 
   let mainWindow: BrowserWindow | null = createWindow()
   const stopReminders = startReminders(db, () => mainWindow)

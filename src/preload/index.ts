@@ -1,5 +1,17 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+// 主进程启动时通过 additionalArguments 注入首屏主题（避免浅色用户启动闪深色）。
+// 解析成色板对象后暴露给渲染进程的 themeInit.ts，在 React 挂载前写 CSS 变量。
+const themeArg = process.argv.find((a) => a.startsWith('--lifeos-theme='))
+let initialTheme: unknown = null
+if (themeArg) {
+  try {
+    initialTheme = JSON.parse(decodeURIComponent(themeArg.slice('--lifeos-theme='.length)))
+  } catch {
+    initialTheme = null
+  }
+}
+
 const api = {
   tasks: {
     list: (date: string): Promise<unknown> => ipcRenderer.invoke('tasks:list', date),
@@ -133,3 +145,4 @@ const api = {
 }
 
 contextBridge.exposeInMainWorld('lifeos', api)
+contextBridge.exposeInMainWorld('__lifeosTheme', initialTheme)

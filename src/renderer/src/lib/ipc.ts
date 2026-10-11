@@ -162,7 +162,11 @@ interface LifeosApi {
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-empty-interface
-  interface Window { lifeos: LifeosApi }
+  interface Window {
+    lifeos: LifeosApi
+    /** 首屏主题色板（主进程启动时注入，见 src/renderer/src/themeInit.ts） */
+    __lifeosTheme?: ThemePalette
+  }
 }
 
 export const api: LifeosApi = window.lifeos
