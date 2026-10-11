@@ -370,48 +370,30 @@ describe('饮食模块迁移 v7', () => {
   })
 })
 
-describe('游戏娱乐模块迁移 v8', () => {
-  it('新库含三张游戏娱乐表', () => {
+describe('移除游戏娱乐模块迁移 v9', () => {
+  it('新库不含游戏娱乐三张表', () => {
     const db = openDb(dbFile)
     expect(version(db)).toBe(LATEST_VERSION)
-    expect(columns(db, 'plays')).toEqual(['id', 'game', 'date', 'minutes', 'created_at', 'updated_at'])
-    expect(columns(db, 'wishlist')).toEqual(['id', 'name', 'platform', 'priority', 'created_at', 'updated_at'])
-    expect(columns(db, 'media')).toContain('rating')
-    expect(columns(db, 'media')).toContain('comment')
+    expect(columns(db, 'plays')).toEqual([])
+    expect(columns(db, 'wishlist')).toEqual([])
+    expect(columns(db, 'media')).toEqual([])
     db.close()
   })
 
-  it('v7 老库能平滑升级到 v8 且饮食数据保留', () => {
+  it('v8 老库升级到 v9 清空娱乐表但保留其它数据', () => {
     const raw = openDb(dbFile)
-    raw.exec('DROP TABLE plays')
-    raw.exec('DROP TABLE wishlist')
-    raw.exec('DROP TABLE media')
-    raw.exec('PRAGMA user_version = 7')
+    // 造一个 v8 库：重建 plays 表并写入娱乐 + 饮食数据，再退回 v8
+    raw.exec("CREATE TABLE plays (id INTEGER PRIMARY KEY AUTOINCREMENT, game TEXT NOT NULL, date TEXT NOT NULL, minutes INTEGER NOT NULL)")
+    raw.prepare("INSERT INTO plays (game, date, minutes) VALUES ('老头环', '2026-10-09', 90)").run()
     raw.prepare("INSERT INTO meals (date, type) VALUES ('2026-10-09', 'lunch')").run()
+    raw.exec('PRAGMA user_version = 8')
     raw.close()
 
     const db = openDb(dbFile)
     expect(version(db)).toBe(LATEST_VERSION)
-    expect(columns(db, 'plays')).toContain('minutes')
+    expect(columns(db, 'plays')).toEqual([])
+    expect(columns(db, 'media')).toEqual([])
     expect(db.prepare('SELECT COUNT(*) c FROM meals').get()).toEqual({ c: 1 })
-    db.close()
-  })
-
-  it('默认值正确（priority=mid / status=planned / rating=0 / comment 空）', () => {
-    const db = openDb(dbFile)
-    db.prepare("INSERT INTO wishlist (name) VALUES ('丝之歌')").run()
-    expect(db.prepare('SELECT priority, platform FROM wishlist').get()).toEqual({ priority: 'mid', platform: '' })
-    db.prepare("INSERT INTO media (title, type, date) VALUES ('沙丘', 'movie', '2026-10-09')").run()
-    expect(db.prepare('SELECT status, rating, comment FROM media').get())
-      .toEqual({ status: 'planned', rating: 0, comment: '' })
-    db.close()
-  })
-
-  it('同一天同一游戏可有多条游玩记录', () => {
-    const db = openDb(dbFile)
-    db.prepare("INSERT INTO plays (game, date, minutes) VALUES ('老头环', '2026-10-09', 90)").run()
-    db.prepare("INSERT INTO plays (game, date, minutes) VALUES ('老头环', '2026-10-09', 30)").run()
-    expect(db.prepare('SELECT COUNT(*) c FROM plays').get()).toEqual({ c: 2 })
     db.close()
   })
 })

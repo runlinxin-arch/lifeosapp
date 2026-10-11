@@ -5,8 +5,7 @@ import type {
   LearnItem, LearnItemInput, LearnItemPatch,
   LearnNote, LearnSession, LongTask, LongTaskPatch, MarkFromSourceInput,
   Meal, MealInput, MealPlan, MealPlanInput, MealType,
-  Media, MediaInput, MediaPatch,
-  ModuleKey, Occurrence, Play, PlayInput, PlayPatch, Priority, Project, ProjectInput, ProjectPatch, Snippet, SnippetInput, SnippetPatch,
+  ModuleKey, Occurrence, Priority, Project, ProjectInput, ProjectPatch, Snippet, SnippetInput, SnippetPatch,
   Task, TechNote, TechNoteInput, TechNotePatch,
   WorkoutLog, WorkoutLogInput, WorkoutLogPatch, WorkoutPlan, WorkoutPlanInput, WorkoutPlanPatch
 } from '@shared/types'
@@ -154,17 +153,6 @@ interface LifeosApi {
     getPlan(date: string, type: MealType): Promise<MealPlan | null>
     upsertMealPlan(input: MealPlanInput): Promise<MealPlan>
     removePlan(id: number): Promise<void>
-  }
-  ent: {
-    listPlays(from?: string, to?: string): Promise<Play[]>
-    createPlay(input: PlayInput): Promise<Play>
-    updatePlay(id: number, patch: PlayPatch): Promise<Play>
-    removePlay(id: number): Promise<void>
-
-    listMedia(from?: string, to?: string): Promise<Media[]>
-    createMedia(input: MediaInput): Promise<Media>
-    updateMedia(id: number, patch: MediaPatch): Promise<Media>
-    removeMedia(id: number): Promise<void>
   }
 }
 

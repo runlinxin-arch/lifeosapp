@@ -4,7 +4,6 @@ import { ensureDataDir } from './db'
 import { startupOpen } from './backup'
 import { registerIpc } from './ipc'
 import { startReminders } from './reminders'
-import { startGameDetect } from './gameDetect'
 import { registerImageProtocol, registerImageScheme } from './images'
 import { resolveDataDir, DATA_DIR_ENV } from './paths'
 
@@ -52,7 +51,6 @@ void app.whenReady().then(() => {
 
   let mainWindow: BrowserWindow | null = createWindow()
   const stopReminders = startReminders(db, () => mainWindow)
-  const stopGameDetect = startGameDetect(db)
 
   if (notice) {
     void dialog.showMessageBox({ type: 'warning', title: 'LifeOS 数据恢复', message: notice })
@@ -63,7 +61,6 @@ void app.whenReady().then(() => {
   })
   app.on('before-quit', () => {
     stopReminders()
-    stopGameDetect()
     db.close()
   })
 })

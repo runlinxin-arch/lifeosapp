@@ -8,7 +8,7 @@ import type { LongTask } from '@shared/types'
 
 const SOURCE_LABEL: Record<string, string> = {
   schedule: '日程', learning: '自我学习', dev: '开发', inspiration: '设计灵感',
-  fitness: '健身', diet: '饮食', entertainment: '游戏娱乐'
+  fitness: '健身', diet: '饮食'
 }
 
 export function TimelineBar(): JSX.Element {

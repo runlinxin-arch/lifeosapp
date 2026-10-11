@@ -320,6 +320,17 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_media_date ON media(date);
       `)
     }
+  },
+  {
+    // v9 —— 移除游戏娱乐模块：清空游玩/愿望单/影视书三张表
+    version: 9,
+    up: (db) => {
+      db.exec(`
+        DROP TABLE IF EXISTS plays;
+        DROP TABLE IF EXISTS wishlist;
+        DROP TABLE IF EXISTS media;
+      `)
+    }
   }
 ]
 

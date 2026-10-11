@@ -146,47 +146,7 @@ check('**跨零点后：卡片归属自动切到新的一天**（已记录 0 餐
   cardsCrossed && cardAfter.recorded === '0' && cardAfter.kcal === '0' && cardAfter.planned === '',
   JSON.stringify(cardAfter))
 
-// ---------- 4. 阶段二：重新载入（时钟回到 23:59:50），验证表单默认日期 ----------
-await send('Page.reload', { ignoreCache: true })
-await sleep(2500)
-await evaluate(HELPERS)
-await waitFor(`!!document.querySelector('aside')`, 10000)
-
-await evaluate(`__goto('游戏娱乐'); true`)
-await sleep(600)
-await evaluate(`document.querySelector('[data-tab="plays"]')?.click(); true`)
-await waitFor(`!!document.querySelector('[data-play-date]')`, 6000)
-const beforeValue = await evaluate(`document.querySelector('[data-play-date]')?.value`)
-check('跨零点前：游玩记录默认日期是今天', beforeValue === D0, `date=${beforeValue}`)
-
-// ---------- 5. 等待真的跨过零点 ----------
-const crossed = await waitFor(`document.querySelector('[data-play-date]')?.value === '${D1}'`, 30000)
-const afterValue = await evaluate(`document.querySelector('[data-play-date]')?.value`)
-check('**跨零点后：游玩记录默认日期自动跟随到新的一天**', crossed && afterValue === D1, `date=${afterValue}`)
-
-// ---------- 6. 端到端：用默认日期记录一次游玩，落库日期应是 D1 ----------
-await evaluate(`(async () => {
-  window.__set(document.querySelector('[data-play-game]'), '零点测试');
-  window.__set(document.querySelector('[data-play-minutes]'), 30);
-  return true;
-})()`)
-await sleep(250)
-await evaluate(`document.querySelector('[data-action="add-play"]')?.click(); true`)
-await sleep(1200)
-const stored = await evaluate(`(async () => {
-  const rows = await window.lifeos.ent.listPlays();
-  const hit = rows.find(r => r.game === '零点测试');
-  return hit ? { date: hit.date, minutes: hit.minutes } : null;
-})()`)
-check('用默认日期录入的游玩记录落在新的一天', !!stored && stored.date === D1 && stored.minutes === 30, JSON.stringify(stored))
-
-// ---------- 6. 影视表单（跨零点后新挂载）同样默认新的一天 ----------
-await evaluate(`document.querySelector('[data-tab="screen"]')?.click(); true`)
-await waitFor(`!!document.querySelector('[data-media-date]')`, 6000)
-const mediaDate = await evaluate(`document.querySelector('[data-media-date]')?.value`)
-check('影视表单默认日期也是新的一天', mediaDate === D1, `date=${mediaDate}`)
-
-// ---------- 7. 卡片与页面在跨零点后仍可用 ----------
+// ---------- 4. 卡片与页面在跨零点后仍可用 ----------
 await evaluate(`__goto('今天'); true`)
 await sleep(1200)
 check('跨零点后「今天」页卡片仍正常渲染',

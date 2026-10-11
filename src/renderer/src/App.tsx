@@ -9,7 +9,6 @@ import { DevPage } from './components/dev/DevPage'
 import { InspirationPage } from './components/inspiration/InspirationPage'
 import { FitnessPage } from './components/fitness/FitnessPage'
 import { DietPage } from './components/diet/DietPage'
-import { EntertainmentPage } from './components/entertainment/EntertainmentPage'
 
 export default function App(): JSX.Element {
   const [page, setPage] = useState<PageKey>('today')
@@ -30,8 +29,6 @@ export default function App(): JSX.Element {
         return <FitnessPage />
       case 'diet':
         return <DietPage />
-      case 'entertainment':
-        return <EntertainmentPage />
       default:
         return <div className="p-4 text-[var(--muted)]">该模块将在后续里程碑开放</div>
     }

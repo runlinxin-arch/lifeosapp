@@ -2,7 +2,7 @@ export type Priority = 'low' | 'mid' | 'high'
 
 export type ModuleKey =
   | 'schedule' | 'learning' | 'dev' | 'inspiration'
-  | 'fitness' | 'diet' | 'entertainment'
+  | 'fitness' | 'diet'
 
 /**
  * 待办的来源：业务模块，或由日程事件自动汇入（'event'）。
@@ -43,8 +43,7 @@ export const MODULE_COLORS: Record<ModuleKey, string> = {
   dev: '#3498db',
   inspiration: '#e879c9',
   fitness: '#e74c3c',
-  diet: '#f39c12',
-  entertainment: '#a06ee1'
+  diet: '#f39c12'
 }
 
 export type RepeatType = 'none' | 'daily' | 'weekly' | 'monthly'
@@ -424,51 +423,3 @@ export interface MealPlanInput {
   type: MealType
   content: string
 }
-
-// ---------- M4-3 游戏娱乐 ----------
-
-/** 一次游玩记录（日期 + 时长），同一游戏可有多条 */
-export interface Play {
-  id: number
-  game: string
-  date: string
-  /** 时长（分钟），1–1440 整数 */
-  minutes: number
-  created_at: string
-  updated_at: string
-}
-
-export interface PlayInput {
-  game: string
-  date: string
-  minutes: number
-}
-export type PlayPatch = Partial<PlayInput>
-
-/** 影视书类型：电影 / 剧集 / 书籍 */
-export type MediaType = 'movie' | 'series' | 'book'
-/** 影视书状态：想看 / 在看 / 看完 */
-export type MediaStatus = 'planned' | 'doing' | 'done'
-
-export interface Media {
-  id: number
-  title: string
-  type: MediaType
-  status: MediaStatus
-  /** 五星评分，0 表示未评分 */
-  rating: number
-  comment: string
-  date: string
-  created_at: string
-  updated_at: string
-}
-
-export interface MediaInput {
-  title: string
-  type: MediaType
-  date: string
-  status?: MediaStatus
-  rating?: number
-  comment?: string
-}
-export type MediaPatch = Partial<MediaInput>

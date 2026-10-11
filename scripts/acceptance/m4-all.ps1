@@ -117,7 +117,6 @@ Write-Output ""
 $stages = @(
   @{ name = 'M4-1 fitness';       script = 'scripts\acceptance\m4-1-e2e.mjs' },
   @{ name = 'M4-2 diet';          script = 'scripts\acceptance\m4-2-e2e.mjs' },
-  @{ name = 'M4-3 entertainment'; script = 'scripts\acceptance\m4-3-e2e.mjs' },
   @{ name = 'M4-4 today cards';   script = 'scripts\acceptance\m4-4-e2e.mjs' },
   @{ name = 'M4-midnight forms';  script = 'scripts\acceptance\m4-midnight-e2e.mjs' }
 )
