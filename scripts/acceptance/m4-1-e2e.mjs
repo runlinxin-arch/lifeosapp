@@ -131,8 +131,8 @@ await setDay(D.iso, '腿')
 
 const sched = await evaluate(`(async () => (await window.lifeos.fit.listPlans())[0].schedule)()`)
 check('一周安排以 ISO 数字键入库（1=周一）', sched && sched['1'] === '胸' && sched[D.iso] === '腿', JSON.stringify(sched))
-const chipShown = await evaluate(`__text().includes('今日训练') && __text().includes('腿')`)
-check('「今日训练」显示今天该练什么（腿）', chipShown)
+const plannedChip = await evaluate(`document.querySelector('[data-workout-planned]')?.getAttribute('data-workout-planned') ?? null`)
+check('「今日训练」显示今天该练什么（腿）', plannedChip === '腿', plannedChip ?? '(无)')
 await shot('31-m4-fitness-plan')
 
 // ---- 刷新后仍保持 ----

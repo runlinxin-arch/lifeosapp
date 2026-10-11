@@ -3,7 +3,7 @@ import { openDb } from '../src/main/db'
 import {
   listPlans, getPlan, createPlan, updatePlan, deletePlan,
   listLogs, getLog, createLog, updateLog, deleteLog,
-  listMetrics, upsertMetric, deleteMetric, latestBodyMetric
+  listMetrics, upsertMetric, deleteMetric
 } from '../src/main/db/fitness'
 
 let db: ReturnType<typeof openDb>
@@ -186,16 +186,6 @@ describe('身体数据', () => {
     upsertMetric(db, { date: '2026-10-01', weight: 71 })
     upsertMetric(db, { date: '2026-10-09', weight: 70 })
     expect(listMetrics(db, '2026-10-05', '2026-10-31').map((m) => m.date)).toEqual(['2026-10-09'])
-  })
-
-  it('latestBodyMetric 取最新一条', () => {
-    upsertMetric(db, { date: '2026-10-01', weight: 71 })
-    upsertMetric(db, { date: '2026-10-09', weight: 70 })
-    expect(latestBodyMetric(db)!.weight).toBe(70)
-  })
-
-  it('无数据时 latestBodyMetric 为 null', () => {
-    expect(latestBodyMetric(db)).toBeNull()
   })
 
   it('删除身体数据', () => {

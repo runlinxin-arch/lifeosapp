@@ -141,16 +141,13 @@ interface LifeosApi {
     listMetrics(from?: string, to?: string): Promise<BodyMetric[]>
     upsertMetric(input: BodyMetricInput): Promise<BodyMetric>
     removeMetric(id: number): Promise<void>
-    latestMetric(): Promise<BodyMetric | null>
   }
   diet: {
     listMeals(from?: string, to?: string): Promise<Meal[]>
-    getMeal(date: string, type: MealType): Promise<Meal | null>
     upsertMeal(input: MealInput): Promise<Meal>
     removeMeal(id: number): Promise<void>
 
     listPlans(from?: string, to?: string): Promise<MealPlan[]>
-    getPlan(date: string, type: MealType): Promise<MealPlan | null>
     upsertMealPlan(input: MealPlanInput): Promise<MealPlan>
     removePlan(id: number): Promise<void>
   }

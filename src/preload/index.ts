@@ -112,17 +112,14 @@ const api = {
 
     listMetrics: (from?: string, to?: string): Promise<unknown> => ipcRenderer.invoke('fit:listMetrics', from, to),
     upsertMetric: (input: unknown): Promise<unknown> => ipcRenderer.invoke('fit:upsertMetric', input),
-    removeMetric: (id: number): Promise<unknown> => ipcRenderer.invoke('fit:deleteMetric', id),
-    latestMetric: (): Promise<unknown> => ipcRenderer.invoke('fit:latestMetric')
+    removeMetric: (id: number): Promise<unknown> => ipcRenderer.invoke('fit:deleteMetric', id)
   },
   diet: {
     listMeals: (from?: string, to?: string): Promise<unknown> => ipcRenderer.invoke('diet:listMeals', from, to),
-    getMeal: (date: string, type: string): Promise<unknown> => ipcRenderer.invoke('diet:getMeal', date, type),
     upsertMeal: (input: unknown): Promise<unknown> => ipcRenderer.invoke('diet:upsertMeal', input),
     removeMeal: (id: number): Promise<unknown> => ipcRenderer.invoke('diet:deleteMeal', id),
 
     listPlans: (from?: string, to?: string): Promise<unknown> => ipcRenderer.invoke('diet:listPlans', from, to),
-    getPlan: (date: string, type: string): Promise<unknown> => ipcRenderer.invoke('diet:getPlan', date, type),
     upsertMealPlan: (input: unknown): Promise<unknown> => ipcRenderer.invoke('diet:upsertMealPlan', input),
     removePlan: (id: number): Promise<unknown> => ipcRenderer.invoke('diet:deletePlan', id)
   }

@@ -40,7 +40,7 @@ export function TodayWorkout({ plan }: { plan: WorkoutPlan | null }): JSX.Elemen
       <div className="flex items-center gap-2 mb-2">
         <span className="text-sm font-bold">🏋️ 今日训练</span>
         {planned && (
-          <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: 'rgba(231,76,60,0.15)', color: '#e74c3c' }}>
+          <span data-workout-planned={planned} className="text-[10px] px-2 py-0.5 rounded" style={{ background: 'rgba(231,76,60,0.15)', color: '#e74c3c' }}>
             {planned}
           </span>
         )}

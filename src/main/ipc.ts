@@ -145,16 +145,13 @@ export function registerIpc(db: DatabaseSync): void {
   ipcMain.handle('fit:listMetrics', (_e, from?: string, to?: string) => fit.listMetrics(db, from, to))
   ipcMain.handle('fit:upsertMetric', (_e, input: fit.BodyMetricInput) => fit.upsertMetric(db, input))
   ipcMain.handle('fit:deleteMetric', (_e, id: number) => fit.deleteMetric(db, id))
-  ipcMain.handle('fit:latestMetric', () => fit.latestBodyMetric(db))
 
   // ---------- M4-2 饮食 ----------
   ipcMain.handle('diet:listMeals', (_e, from?: string, to?: string) => diet.listMeals(db, from, to))
-  ipcMain.handle('diet:getMeal', (_e, date: string, type: diet.MealType) => diet.getMeal(db, date, type))
   ipcMain.handle('diet:upsertMeal', (_e, input: diet.MealInput) => diet.upsertMeal(db, input))
   ipcMain.handle('diet:deleteMeal', (_e, id: number) => diet.deleteMeal(db, id))
 
   ipcMain.handle('diet:listPlans', (_e, from?: string, to?: string) => diet.listPlans(db, from, to))
-  ipcMain.handle('diet:getPlan', (_e, date: string, type: diet.MealType) => diet.getPlan(db, date, type))
   ipcMain.handle('diet:upsertMealPlan', (_e, input: diet.MealPlanInput) => diet.upsertMealPlan(db, input))
   ipcMain.handle('diet:deletePlan', (_e, id: number) => diet.deletePlan(db, id))
 }

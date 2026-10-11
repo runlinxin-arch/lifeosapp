@@ -21,13 +21,13 @@ const asMetric = (r: any): BodyMetric => r as BodyMetric
 
 function assertWeight(w: number): void {
   if (!Number.isFinite(w) || w <= 0 || w > MAX_WEIGHT_KG) {
-    throw new Error(`体重必须是 0–${MAX_WEIGHT_KG} 之间的数字`)
+    throw new Error(`体重必须大于 0 且不超过 ${MAX_WEIGHT_KG}`)
   }
 }
 
 function assertBodyFat(f: number | null | undefined): void {
   if (f === null || f === undefined) return
-  if (!Number.isFinite(f) || f <= 0 || f > 100) throw new Error('体脂率必须是 0–100 之间的数字')
+  if (!Number.isFinite(f) || f <= 0 || f > 100) throw new Error('体脂率必须大于 0 且不超过 100')
 }
 
 // ---------- 训练计划 ----------
@@ -145,9 +145,4 @@ export function upsertMetric(db: DatabaseSync, input: BodyMetricInput): BodyMetr
 
 export function deleteMetric(db: DatabaseSync, id: number): void {
   db.prepare('DELETE FROM body_metrics WHERE id = ?').run(id)
-}
-
-export function latestBodyMetric(db: DatabaseSync): BodyMetric | null {
-  const row = db.prepare('SELECT * FROM body_metrics ORDER BY date DESC LIMIT 1').get()
-  return row ? asMetric(row) : null
 }

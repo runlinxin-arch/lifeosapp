@@ -17,7 +17,7 @@ Electron 44（electron-vite）+ React 18 + TypeScript + Vite + Tailwind CSS + Zu
 ```bash
 npm install
 npm run dev        # 开发模式
-npm test           # Vitest（40 文件 / 686 用例）
+npm test           # Vitest（40 文件 / 684 用例）
 npm run typecheck  # tsc 两份配置，0 错误
 npm run build      # 构建三入口到 out/
 npx electron-builder   # 打 Windows 安装包到 release/
