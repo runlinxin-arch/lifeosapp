@@ -47,6 +47,9 @@ npx electron-builder   # 打 Windows 安装包到 release/
 
 # M4 五阶段回归（含跨零点）
 & .\scripts\acceptance\m4-all.ps1
+
+# M5 设置页回归
+& .\scripts\acceptance\m5-all.ps1
 ```
 
 验收脚本**不会触碰真实数据**：应用数据目录可由 `LIFEOS_DATA_DIR` 覆盖，runner 会在 `%TEMP%` 的一次性目录里跑，并断言真实 `app.db` 与 `images/` 指纹未变；会清库的脚本在未设置该变量时直接拒绝运行。

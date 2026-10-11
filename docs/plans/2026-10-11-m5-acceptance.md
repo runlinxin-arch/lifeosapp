@@ -40,10 +40,11 @@
 - `npm run typecheck`：两份配置 **0 错误**
 - `npm run build`：三入口构建成功
 - `npx electron-builder --win`：产出 `release/LifeOS Setup 0.1.0.exe`（NSIS，oneClick=false）
+- `& .\scripts\acceptance\m5-all.ps1`：**9/9 通过**（设置页四区块齐全、浅色切换即时生效、主题色全局生效、提醒开关/提前分钟数、时间轴范围/显示已完成、网站风格无效网址报错）
 
 ## 五、已知限制与待人工确认
 
-1. **沙箱内无法运行 Electron**：本会话环境拉起 Electron 主进程即原生崩溃（`0x80000003`），因此**未做真实界面目视与安装/运行/卸载的端到端验证**。主题切换、导出导入弹窗、网站抓取、安装包安装卸载均需在正常桌面环境人工确认一次。
+1. **设置页 UI 已 E2E 验收通过**（`m5-all.ps1` 9/9）。仍待人工确认的项：**网站风格「有效网址」抓取**（依赖外网，E2E 只覆盖了无效网址报错路径；有效网址路径由 `themeExtract` 单测 + 手动验证兜底）、**导出/导入的完整流程**（弹原生文件对话框 + 导入后重启，E2E 不易自动化，由 `dataTransfer.test.ts` 往返用例覆盖）、**安装包安装/运行/卸载**（需在正常桌面环境执行 `release/LifeOS Setup 0.1.0.exe`）。
 2. **网站风格只提取配色，不做字体**：设计文档原写「配色/字体」，字体提取未实现（应用使用系统字体，收益有限），已回写设计文档口径。
 3. **安装包用默认 Electron 图标**：未设置自定义应用图标（`default Electron icon is used`），属打磨项，可后续补充。
 4. **package.json 缺 `author` 字段**：electron-builder 提示，不影响构建，可补。
