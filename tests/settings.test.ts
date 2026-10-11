@@ -68,4 +68,35 @@ describe('settings', () => {
     setSetting(db, 'remind.leadMinutes', 45)
     expect(getAllSettings(db)['remind.leadMinutes']).toBe(45)
   })
+
+  it('主题设置默认值：dark + 默认强调色 + 无自定义主题', () => {
+    const s = getAllSettings(db)
+    expect(s['theme.mode']).toBe('dark')
+    expect(s['theme.accent']).toBe('#7c8cff')
+    expect(s['theme.custom']).toBeNull()
+  })
+
+  it('主题模式与主题色可写回，非法值报错且不落库', () => {
+    setSetting(db, 'theme.mode', 'light')
+    expect(getAllSettings(db)['theme.mode']).toBe('light')
+    setSetting(db, 'theme.accent', '#4ade80')
+    expect(getAllSettings(db)['theme.accent']).toBe('#4ade80')
+    expect(() => setSetting(db, 'theme.mode', 'blue' as never)).toThrow('dark / light')
+    expect(() => setSetting(db, 'theme.accent', 'red')).toThrow('#rrggbb')
+    expect(() => setSetting(db, 'theme.accent', '#fff')).toThrow('#rrggbb')
+    expect(getAllSettings(db)['theme.mode']).toBe('light')
+    expect(getAllSettings(db)['theme.accent']).toBe('#4ade80')
+  })
+
+  it('自定义主题色板可整组读写，坏结构回退 null', () => {
+    const palette = { bg: '#111111', card: '#222222', border: '#333333', accent: '#4ade80', text: '#eeeeee', muted: '#999999' }
+    setSetting(db, 'theme.custom', palette)
+    expect(getAllSettings(db)['theme.custom']).toEqual(palette)
+    setSetting(db, 'theme.custom', null)
+    expect(getAllSettings(db)['theme.custom']).toBeNull()
+    expect(() => setSetting(db, 'theme.custom', { bg: '#111111' } as never)).toThrow('6 个')
+    db.prepare("DELETE FROM settings WHERE key = 'theme.custom'").run()
+    db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('theme.custom', JSON.stringify({ bg: 'red' }))
+    expect(getAllSettings(db)['theme.custom']).toBeNull()
+  })
 })

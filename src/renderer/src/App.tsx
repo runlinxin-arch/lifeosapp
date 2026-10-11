@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AppShell } from './components/layout/AppShell'
 import { Sidebar, type PageKey } from './components/layout/Sidebar'
 import { TimelineBar } from './components/layout/TimelineBar'
@@ -9,9 +9,17 @@ import { DevPage } from './components/dev/DevPage'
 import { InspirationPage } from './components/inspiration/InspirationPage'
 import { FitnessPage } from './components/fitness/FitnessPage'
 import { DietPage } from './components/diet/DietPage'
+import { useSettingsStore } from './stores/settingsStore'
+import { applyTheme } from './lib/theme'
 
 export default function App(): JSX.Element {
   const [page, setPage] = useState<PageKey>('today')
+  const settings = useSettingsStore((s) => s.settings)
+  const loadSettings = useSettingsStore((s) => s.load)
+
+  // 应用启动即拉取设置，主题随设置变化即时生效
+  useEffect(() => { void loadSettings() }, [loadSettings])
+  useEffect(() => { applyTheme(settings) }, [settings])
 
   const content = useMemo(() => {
     switch (page) {

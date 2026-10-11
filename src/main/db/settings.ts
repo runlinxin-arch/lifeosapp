@@ -1,5 +1,8 @@
 import type { DatabaseSync } from 'node:sqlite'
-import { DEFAULT_SETTINGS, SETTINGS_KEYS, type Settings, type SettingsKey } from '@shared/settings'
+import {
+  DEFAULT_SETTINGS, isHexColor, isThemePalette, SETTINGS_KEYS,
+  type Settings, type SettingsKey
+} from '@shared/settings'
 
 export * from '@shared/settings'
 
@@ -17,6 +20,15 @@ function validate(key: SettingsKey, value: unknown): void {
     if (!Number.isInteger(value) || (value as number) < 0 || (value as number) > 1440) {
       throw new Error('提前提醒分钟数必须是 0–1440 的整数')
     }
+  }
+  if (key === 'theme.mode' && !['dark', 'light'].includes(value as string)) {
+    throw new Error('主题模式只能是 dark / light')
+  }
+  if (key === 'theme.accent' && !isHexColor(value)) {
+    throw new Error('主题色必须是 #rrggbb 格式')
+  }
+  if (key === 'theme.custom' && value !== null && !isThemePalette(value)) {
+    throw new Error('自定义主题必须是 6 个 #rrggbb 颜色，或 null')
   }
 }
 
