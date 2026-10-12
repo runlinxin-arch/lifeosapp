@@ -15,6 +15,11 @@
 - **应用图标**：`build/icon.png`（1024×1024，由 `scripts/dev/make-icon.py` 生成），替换 Electron 默认图标，
   Windows `.ico` 与 macOS `.icns` 由 electron-builder 自动生成。
 
+### 修复
+
+- `ensureDataDir` 硬编码 Windows 反斜杠：macOS 上 `images/` 与 `backups/` 从未被创建（会建出名为
+  `<数据目录>\backups` 的错目录），图片读写与滚动备份失效。改为 `path.join` 拼接，由新增的 macOS CI 矩阵发现。
+
 ### 变更
 
 - electron-builder 25.1.8 → 26.15.3，macOS 用 `mac.identity: "-"` 做确定性 ad-hoc 签名（无开发者证书也能装）。

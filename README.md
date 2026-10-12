@@ -12,7 +12,7 @@
 
 | 平台 | 安装包 | 说明 |
 | --- | --- | --- |
-| Windows 10/11（x64） | `LifeOS Setup 0.1.1.exe` | NSIS 安装向导，可改安装目录 |
+| Windows 10/11（x64） | `LifeOS.Setup.0.1.1.exe` | NSIS 安装向导，可改安装目录 |
 | macOS Apple Silicon（M 系列） | `LifeOS-0.1.1-mac-arm64.dmg` | 拖进「应用程序」 |
 | macOS Intel（x64） | `LifeOS-0.1.1-mac-x64.dmg` | 拖进「应用程序」 |
 
