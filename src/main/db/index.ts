@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite'
 import fs from 'node:fs'
+import path from 'node:path'
 
 export interface Migration {
   version: number
@@ -381,6 +382,7 @@ export function openDb(file: string): DatabaseSync {
 
 export function ensureDataDir(dir: string): void {
   fs.mkdirSync(dir, { recursive: true })
-  fs.mkdirSync(`${dir}\\backups`, { recursive: true })
-  fs.mkdirSync(`${dir}\\images`, { recursive: true })
+  // 用 path.join 拼子目录：Windows 反斜杠硬编码在 macOS/Linux 上会建出名为 "xxx\backups" 的错目录
+  fs.mkdirSync(path.join(dir, 'backups'), { recursive: true })
+  fs.mkdirSync(path.join(dir, 'images'), { recursive: true })
 }
