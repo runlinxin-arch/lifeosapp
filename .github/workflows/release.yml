@@ -146,6 +146,8 @@ jobs:
       - name: Create or update release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 该 job 不 checkout（避免为发布再拉一次代码），gh 需要显式指定目标仓库
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           tag="${{ github.ref_name }}"
