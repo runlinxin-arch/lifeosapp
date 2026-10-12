@@ -1,6 +1,6 @@
 {
   "name": "lifeos",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "LifeOS - 个人工作与生活管理系统",
   "author": "runlinxin-arch",
@@ -13,16 +13,28 @@
   "build": {
     "appId": "com.lifeos.app",
     "productName": "LifeOS",
-    "directories": { "output": "release" },
+    "directories": { "output": "release", "buildResources": "build" },
     "files": ["out/**"],
     "win": { "target": ["nsis"] },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] }
+      ],
+      "category": "public.app-category.productivity",
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
+      "identity": "-",
+      "hardenedRuntime": false
+    },
+    "dmg": { "title": "${productName} ${version}" }
   },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
@@ -38,7 +50,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "electron": "^44.4.5",
-    "electron-builder": "^25.1.8",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",

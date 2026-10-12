@@ -8,7 +8,13 @@ on:
 
 jobs:
   test:
-    runs-on: windows-latest
+    name: 测试与构建 (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # 应用是跨平台的：Windows 与 macOS 都要跑通测试、类型检查与构建
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5

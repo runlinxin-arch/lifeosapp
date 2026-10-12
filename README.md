@@ -2,13 +2,38 @@
 
 个人工作与生活管理桌面应用 —— 把待办、日程、长期计划、学习、开发、灵感、健身、饮食统一到一个本地应用里。
 
-> 单用户、纯本地：数据全部存在 `%APPDATA%\LifeOS\`，不联网、无账号。
+> 单用户、纯本地：数据全部存在本机应用数据目录（Windows `%APPDATA%\lifeos\`，macOS `~/Library/Application Support/lifeos/`），不联网、无账号。
 
 [![CI](https://github.com/runlinxin-arch/lifeosapp/actions/workflows/ci.yml/badge.svg)](https://github.com/runlinxin-arch/lifeosapp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/runlinxin-arch/lifeosapp/releases/latest)
+[![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)](https://github.com/runlinxin-arch/lifeosapp/releases/latest)
 
-**下载安装包**：[LifeOS Setup 0.1.0.exe](https://github.com/runlinxin-arch/lifeosapp/releases/latest)（Windows）
+**下载安装包**（均来自 [最新 Release](https://github.com/runlinxin-arch/lifeosapp/releases/latest)）：
+
+| 平台 | 安装包 | 说明 |
+| --- | --- | --- |
+| Windows 10/11（x64） | `LifeOS Setup 0.1.1.exe` | NSIS 安装向导，可改安装目录 |
+| macOS Apple Silicon（M 系列） | `LifeOS-0.1.1-mac-arm64.dmg` | 拖进「应用程序」 |
+| macOS Intel（x64） | `LifeOS-0.1.1-mac-x64.dmg` | 拖进「应用程序」 |
+
+### 下载与安装
+
+**macOS**：打开 dmg，把 LifeOS 拖进「应用程序」。安装包**没有 Apple 开发者签名与公证**（需要付费账号），
+所以首次打开会被 Gatekeeper 拦下 —— 按下面任一种方式放行一次即可：
+
+1. 双击 App，看到「无法验证开发者 / 无法验证是否包含恶意软件」后，打开「系统设置 → 隐私与安全性」，
+   在「安全性」区域点「仍要打开」，再确认一次。
+   > macOS 15 Sequoia 起「右键 → 打开」不再直接放行，必须走系统设置这一步。
+2. 或者终端执行一次（按实际安装路径调整）：
+
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/LifeOS.app
+   ```
+
+包内的 `LifeOS.app` 是 ad-hoc 签名（`mac.identity: "-"`），发布前由 CI 做严格校验（见[发布](#发布)），
+不会出现「App 已损坏」；若遇到该提示，说明下载不完整，重新下载即可。
+
+**Windows**：运行 `.exe`，安装向导里可以改安装目录。
 
 ## 技术栈
 
@@ -26,7 +51,30 @@ npm run dev        # 开发模式
 npm test           # Vitest（46 文件 / 710 用例）
 npm run typecheck  # tsc 两份配置，0 错误
 npm run build      # 构建三入口到 out/
-npx electron-builder   # 打 Windows 安装包到 release/
+npm run dist:win   # 打 Windows 安装包到 release/（NSIS .exe）
+npm run dist:mac   # 打 macOS 安装包到 release/（.dmg，必须在 macOS 上执行）
+```
+
+## 发布
+
+推送 `v*` tag 触发 `.github/workflows/release.yml`，两个 runner 并行打包后汇总到同一个 Release：
+
+| 平台 | runner | 产物 |
+| --- | --- | --- |
+| Windows | `windows-latest` | `LifeOS Setup <版本>.exe`（NSIS） |
+| macOS | `macos-latest` | `LifeOS-<版本>-mac-arm64.dmg`、`LifeOS-<版本>-mac-x64.dmg` |
+
+macOS 侧发布前有三道门禁，任一不过就整单不发：
+
+1. `codesign --verify --deep --strict` 通过，且 `Contents/_CodeSignature/CodeResources` 存在
+   —— 挡住「只带 linker 签名」这类会让用户看到「App 已损坏」的半成品；
+2. `hdiutil verify` 通过，挂载 dmg 复验其中的 `LifeOS.app` 签名、`CFBundleIdentifier` 与版本号；
+3. 解包后的 App 在 runner 上启动 25 秒不崩，且已初始化 `app.db`。
+
+```bash
+# 本地打同一套包（macOS 包只能在 macOS 上打）
+npm run dist:win
+npm run dist:mac
 ```
 
 ## 里程碑进度
@@ -65,6 +113,7 @@ npx electron-builder   # 打 Windows 安装包到 release/
 ## 目录结构
 
 ```
+build/       应用图标（icon.png，Windows .ico 与 macOS .icns 由 electron-builder 生成）
 src/
   main/       主进程：db（迁移/数据层）、ipc、backup、reminders、images
   preload/    contextBridge 暴露 window.lifeos

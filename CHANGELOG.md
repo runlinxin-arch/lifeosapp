@@ -2,6 +2,25 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)（SemVer）。
 
+## [v0.1.1] - 2026-10-12
+
+### 新增
+
+- **macOS 安装包**：新增 `dmg` 目标（arm64 / x64 两个架构），与 Windows 安装包发布在同一个 Release，
+  README 补充下载与 Gatekeeper 首次放行说明。
+- **跨平台 Release 工作流**：改为 Windows + macOS 双平台矩阵并行打包，汇总后统一创建 Release；
+  macOS 侧加三道发布门禁（严格签名校验 + `_CodeSignature/CodeResources`、`hdiutil verify` 并挂载 dmg 复验
+  bundle 标识/版本、打包产物真机启动 25s 并确认数据库初始化）。
+- **CI 覆盖 macOS**：测试 / 类型检查 / 构建同时在 `windows-latest` 与 `macos-latest` 上运行。
+- **应用图标**：`build/icon.png`（1024×1024，由 `scripts/dev/make-icon.py` 生成），替换 Electron 默认图标，
+  Windows `.ico` 与 macOS `.icns` 由 electron-builder 自动生成。
+
+### 变更
+
+- electron-builder 25.1.8 → 26.15.3，macOS 用 `mac.identity: "-"` 做确定性 ad-hoc 签名（无开发者证书也能装）。
+- 新增 `npm run dist:win` / `npm run dist:mac` 脚本。
+- 修正文档里的应用数据目录：Windows 实为 `%APPDATA%\lifeos\`，macOS 为 `~/Library/Application Support/lifeos/`。
+
 ## [v0.1.0] - 2026-10-11
 
 首个完整版本：M1–M5 全部里程碑完成。

@@ -8,8 +8,22 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: windows-latest
+  build:
+    name: 打包 ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows (NSIS)
+            os: windows-latest
+            args: --win
+            artifact: windows-installer
+          - name: macOS (dmg / arm64 + x64)
+            os: macos-latest
+            args: --mac
+            artifact: macos-installer
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -26,21 +40,132 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Test
+        run: npm test
+
       - name: Build
         run: npm run build
 
+      # macOS 没有 Apple 开发者证书，用 electron-builder 的 identity: "-" 做确定性 ad-hoc 签名。
+      # 关掉证书自动发现，避免 runner 上意外命中证书导致产物不确定。
       - name: Build installer
-        run: npx electron-builder --win --publish never
-
-      - name: Create release and upload installer
-        shell: pwsh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder ${{ matrix.args }} --publish never
+
+      - name: List artifacts
+        shell: bash
+        run: ls -la release
+
+      # macOS 关键门禁：签名截断/缺失会让用户看到「App 已损坏」，必须在发布前挡住。
+      - name: Verify macOS signature and dmg
+        if: runner.os == 'macOS'
+        shell: bash
         run: |
-          $tag = "${{ github.ref_name }}"
-          if (gh release view $tag --json id 2>$null) {
-            Write-Output "Release $tag already exists, skip"
-          } else {
-            $exe = Get-ChildItem release -Filter 'LifeOS*.exe' | Select-Object -First 1 -ExpandProperty FullName
-            gh release create $tag $exe --title "LifeOS $tag" --generate-notes
-          }
+          set -euo pipefail
+          apps=(release/mac*/LifeOS.app)
+          if [ ${#apps[@]} -eq 0 ]; then echo "::error::没有产出 .app"; exit 1; fi
+          for app in "${apps[@]}"; do
+            echo "=== $app"
+            codesign -dv --verbose=4 "$app" 2>&1 | sed -n '1,12p'
+            # 严格深验：同时挡住「完全没签名」和「只有 linker 签名」的半成品
+            codesign --verify --deep --strict --verbose=2 "$app"
+            test -f "$app/Contents/_CodeSignature/CodeResources" \
+              || { echo "::error::$app 缺少 _CodeSignature/CodeResources（不是完整的 bundle 签名）"; exit 1; }
+            echo "--- Info.plist"
+            plutil -p "$app/Contents/Info.plist" | grep -E 'CFBundleIdentifier|CFBundleShortVersionString|LSMinimumSystemVersion|CFBundleName|CFBundleExecutable'
+            plutil -extract CFBundleIdentifier raw "$app/Contents/Info.plist" | grep -qx 'com.lifeos.app' \
+              || { echo "::error::$app 的 CFBundleIdentifier 不是 com.lifeos.app"; exit 1; }
+            plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist" | grep -qx "$(node -p "require('./package.json').version")" \
+              || { echo "::error::$app 版本号与 package.json 不一致"; exit 1; }
+          done
+          for dmg in release/*.dmg; do
+            echo "=== $dmg"
+            hdiutil verify "$dmg"
+            mp="$RUNNER_TEMP/dmg-mnt"
+            rm -rf "$mp"; mkdir -p "$mp"
+            hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mp" > /dev/null
+            ls -la "$mp"
+            test -d "$mp/LifeOS.app" || { echo "::error::dmg 内没有 LifeOS.app"; exit 1; }
+            codesign --verify --deep --strict "$mp/LifeOS.app"
+            hdiutil detach "$mp" > /dev/null
+          done
+          echo "签名与 dmg 校验通过"
+
+      # 打包后的 App 必须真能启动并完成主进程初始化（写出 app.db），而不是只看签名
+      - name: Smoke test packaged app
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$(uname -m)" = "arm64" ]; then APP="release/mac-arm64/LifeOS.app"; else APP="release/mac/LifeOS.app"; fi
+          test -d "$APP" || { echo "::error::找不到 $APP"; exit 1; }
+          export LIFEOS_DATA_DIR="$RUNNER_TEMP/lifeos-smoke"
+          rm -rf "$LIFEOS_DATA_DIR"; mkdir -p "$LIFEOS_DATA_DIR"
+          LOG="$RUNNER_TEMP/lifeos-smoke.log"
+          "$APP/Contents/MacOS/LifeOS" > "$LOG" 2>&1 &
+          PID=$!
+          for i in $(seq 1 25); do
+            if ! kill -0 "$PID" 2>/dev/null; then
+              echo "::error::打包后的 App 启动后退出（进程 $PID）"
+              cat "$LOG" || true
+              exit 1
+            fi
+            sleep 1
+          done
+          kill "$PID" 2>/dev/null || true
+          wait "$PID" 2>/dev/null || true
+          cat "$LOG" || true
+          test -f "$LIFEOS_DATA_DIR/app.db" \
+            || { echo "::error::App 运行 25s 仍未初始化数据库"; exit 1; }
+          echo "打包产物启动正常，数据库已初始化"
+
+      # 只上传安装包本体：.blockmap 与 unpacked 目录不发布。放在校验之后，避免留下未过门的产物
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            release/*.exe
+            release/*.dmg
+          if-no-files-found: error
+          retention-days: 3
+
+  release:
+    name: 发布 Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download installers
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${{ github.ref_name }}"
+          ls -la dist
+          mapfile -t files < <(find dist -type f \( -name '*.exe' -o -name '*.dmg' \) | sort)
+          if [ ${#files[@]} -eq 0 ]; then echo "::error::没有可发布的安装包"; exit 1; fi
+          printf 'assets:\n'; printf '  %s\n' "${files[@]}"
+          read -r -d '' notes <<'EOF' || true
+          **下载 / Download**
+
+          | 平台 | 安装包 |
+          | --- | --- |
+          | Windows 10/11 (x64) | LifeOS Setup *.exe |
+          | macOS Apple Silicon（M 系列芯片） | LifeOS-*-mac-arm64.dmg |
+          | macOS Intel（x64） | LifeOS-*-mac-x64.dmg |
+
+          macOS 首次打开会被 Gatekeeper 拦一次，按 README「下载与安装」一节放行即可。
+          EOF
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" "${files[@]}" --clobber
+          else
+            gh release create "$tag" "${files[@]}" --title "LifeOS $tag" --generate-notes --notes "$notes"
+          fi
