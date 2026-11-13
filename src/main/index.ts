@@ -8,6 +8,7 @@ import { registerImageProtocol, registerImageScheme } from './images'
 import { resolveDataDir, DATA_DIR_ENV } from './paths'
 import { getAllSettings } from './db/settings'
 import { resolveTheme } from '@shared/theme'
+import { isInternalNavigation, isSafeExternalUrl } from './externalLink'
 
 // 必须在 app ready 之前注册，否则 lifeos-image:// 会被当成普通 URL 拦掉
 registerImageScheme()
@@ -15,6 +16,18 @@ registerImageScheme()
 // 启动时从设置解析出的窗口背景色与主题参数（浅色用户首屏不闪深色）
 let windowBg = '#1e1f24'
 let windowThemeArg = ''
+
+const RENDERER_DIR = path.join(__dirname, '../renderer')
+const DEV_URL = process.env['ELECTRON_RENDERER_URL']
+
+/** 只把白名单协议交给系统；其余（file:、smb:、javascript:…）直接丢弃并留一行日志。 */
+function openExternalSafely(rawUrl: string): void {
+  if (!isSafeExternalUrl(rawUrl)) {
+    console.warn('[lifeos] 已拦截不安全的外链协议：' + rawUrl)
+    return
+  }
+  void shell.openExternal(rawUrl)
+}
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -32,14 +45,24 @@ function createWindow(): BrowserWindow {
   })
 
   win.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    openExternalSafely(details.url)
     return { action: 'deny' }
   })
 
-  if (process.env['ELECTRON_RENDERER_URL']) {
-    void win.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  // 关键：默认允许页面把应用窗口导航到任意站点；导航后 preload 会重新注入，
+  // 外部页面就拿到了全部 IPC。这里除应用自己的页面外一律拦下，能开的外链走系统浏览器。
+  const guardNavigation = (event: Electron.Event, url: string): void => {
+    if (isInternalNavigation(url, { devUrl: DEV_URL, rendererDir: RENDERER_DIR })) return
+    event.preventDefault()
+    openExternalSafely(url)
+  }
+  win.webContents.on('will-navigate', guardNavigation)
+  win.webContents.on('will-redirect', guardNavigation)
+
+  if (DEV_URL) {
+    void win.loadURL(DEV_URL)
   } else {
-    void win.loadFile(path.join(__dirname, '../renderer/index.html'))
+    void win.loadFile(path.join(RENDERER_DIR, 'index.html'))
   }
 
   return win

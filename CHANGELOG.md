@@ -2,6 +2,16 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)（SemVer）。
 
+## [未发布]
+
+### 安全
+
+- **外链与窗口导航白名单**：`setWindowOpenHandler` 原本把页面给出的任意 URL 直接交给 `shell.openExternal`，
+  且没有 `will-navigate` / `will-redirect` 防护——应用窗口可以被页面导航到外部站点；导航后 preload 会重新注入，
+  外部页面即可调用全部 IPC（增删改数据库、导出、导入）。现在外链只放行 `https:` / `http:` / `mailto:`，
+  其余协议（`file:`、`smb:`、`javascript:` 等）直接丢弃；窗口导航除应用自身页面外一律拦下并转交系统浏览器。
+  新增 `tests/externalLink.test.ts` 覆盖白名单边界。
+
 ## [v0.1.1] - 2026-10-12
 
 ### 新增
